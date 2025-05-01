@@ -1,6 +1,6 @@
 print("""
 .global midinote_hi, midinote_lo
-.text
+.data
 """)
 
 def period(n):

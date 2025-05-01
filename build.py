@@ -6,13 +6,22 @@ simplerule(
     ins=["src/midinote.py"],
     outs=["=midinote.S"],
     commands=["python3 $[ins] > $[outs]"],
-    label="MIDINOTE"
+    label="MIDINOTE",
 )
 
 llvmrawprogram(
     name="ptracker_elf",
     linkscript="src/pet.ld",
-    srcs=["src/main.S", "include/zif.inc", "include/pet.inc", ".+midinote_tab"],
+    srcs=[
+        ".+midinote_tab",
+        "include/pet.inc",
+        "include/zif.inc",
+        "src/caramel.S",
+        "src/bytecode.S",
+        "src/caramel.inc",
+        "src/globals.inc",
+        "src/main.S",
+    ],
 )
 
 simplerule(
@@ -20,13 +29,10 @@ simplerule(
     ins=[".+ptracker_elf"],
     outs=["=ptracker.prg"],
     commands=["$(LLVM)/llvm-objcopy --output-target=binary $[ins] $[outs]"],
-    label=["ELFTOPRG"]
+    label=["ELFTOPRG"],
 )
 
 export(
     name="all",
-    items={
-        "p.elf": ".+ptracker_elf",
-        "p": ".+ptracker"
-    },
+    items={"p.elf": ".+ptracker_elf", "p": ".+ptracker"},
 )

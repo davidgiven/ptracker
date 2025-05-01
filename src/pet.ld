@@ -8,7 +8,11 @@ SECTIONS {
 		*(.zp .zp.*)
 	} >zp
 
-	.text : { *(.text .text.*) } >ram
+	.text : {
+		*(.text.header)
+		*(.text.init)
+		*(.text .text.*)
+	} >ram
 	.data : { *(.data .data.* .rodata .rodata.*) } >ram
 	.noinit (NOLOAD) : { *(.noinit .noinit.*) } >ram
 }

@@ -1,7 +1,8 @@
     #include "zif.inc"
     #include "pet.inc"
+    #include "globals.inc"
 
-    .text
+zproc _init, .text.header
     .word _loadaddr
 _loadaddr:
     .word _entry_string_end, 1
@@ -10,11 +11,9 @@ _loadaddr:
     .byte 0
 _entry_string_end:
     .word 0
+zendproc
 
 .section .zp, "zax", @nobits
-
-#define lo(n) ((n) & 0xff)
-#define hi(n) ((n)>>8 & 0xff)
 
 t1_l:       .fill 1
 t2_l:       .fill 1
@@ -46,8 +45,10 @@ N4 = (1000000 / 2 / 523)
 
 BITRATE = 20
 
-zproc _start
+zproc _start, .text.init
     sei
+
+    jsr init_caramel
 
     ;lda #0x14
     ;sta VIA_ACR
@@ -146,5 +147,7 @@ zproc _start
             lda #0xcc
             sta VIA_PCR
         zendif
+
+        jsr caramel_step
     zendloop
 zendproc

@@ -15,34 +15,32 @@ zendproc
 
 .section .zp, "zax", @nobits
 
-t1:       .fill 1
-t2:       .fill 1
-t3:       .fill 1
-t4:       .fill 1
-t1p:      .fill 1
-t2p:      .fill 1
-t3p:      .fill 1
-t4p:      .fill 1
-t1len:      .fill 1
-t2len:      .fill 1
-t3len:      .fill 1
-t4len:      .fill 1
-lastlen:    .fill 1
-flag:       .fill 1
+t1:         .fill 1
+t2:         .fill 1
+t3:         .fill 1
+t4:         .fill 1
+t1m:        .fill 1
+t2m:        .fill 1
+t3m:        .fill 1
+t4m:        .fill 1
+t1p:        .fill 1
+t2p:        .fill 1
+t3p:        .fill 1
+t4p:        .fill 1
+nextsample: .fill 1
 
-TICK_PERIOD = 150
+SAMPLE_FREQ = 30000
+SAMPLE_PERIOD = 1000000 / SAMPLE_FREQ
 
-N1 = ((1000000 / 262) / TICK_PERIOD)
-N2 = ((1000000 / 330) / TICK_PERIOD)
-N3 = ((1000000 / 392) / TICK_PERIOD)
-N4 = ((1000000 / 523) / TICK_PERIOD)
+N1 = ((1000000 / 262) / SAMPLE_PERIOD)
+N2 = ((1000000 / 330) / SAMPLE_PERIOD)
+N3 = ((1000000 / 392) / SAMPLE_PERIOD)
+N4 = ((1000000 / 523) / SAMPLE_PERIOD)
 
 BITRATE = 3
 
 zproc _start, .text.init
     sei
-
-    jsr init_caramel
 
     lda #0x54 ; T1 continuous, SR under T2 control
     sta VIA_ACR
@@ -50,9 +48,9 @@ zproc _start, .text.init
     lda #0xac
     sta VIA_PCR
 
-    lda #lo(BITRATE)
+    lda #lo(SAMPLE_PERIOD)
     sta VIA_T2C_L
-    lda #hi(BITRATE)
+    lda #hi(SAMPLE_PERIOD)
     sta VIA_T2C_H
 
     lda #0
@@ -70,99 +68,64 @@ zproc _start, .text.init
     sta t3p
     lda #<N4
     sta t4p
-    lda #7
-    sta t1len
-    sta t2len
-    sta t3len
-    sta t4len
-
-    lda #lo(TICK_PERIOD)
-    sta VIA_T1C_L
-    lda #hi(TICK_PERIOD)
-    sta VIA_T1C_H
+    lda #1
+    sta t1
+    sta t2
+    sta t3
+    sta t4
+    lda #5
+    sta t1m
+    sta t2m
+    sta t3m
+    sta t4m
 
     zloop
-        lda VIA_T1C_L
+        ; Generate one sample-worth of data.
 
-        ; Trigger any pulse made in the previous loop (done here for precise timing).
+        .rept 8
+            jsr synthesise
+        .endr
 
-        lda lastlen
-        zif ne
-            lda volume_bits-1, y
-            sta VIA_SR
-        zendif
+        ; Wait for a shift register interrupt.
 
-        ; Update the timers.
-
-        ldy #0
-        ; Worst case for the following: 20 cycles
-        dec t1
-        zif eq
-            cpy t1len       ; 3
-            zif lt          ; 2
-                ldy t1len   ; 3
-            zendif
-            lda t1p         ; 3
-            sta t1          ; 3 = 14
-
-            ;ldx t1len       ; 3
-            ;lda volume_bits, x ; 4
-            ;sta VIA_SR      ; 4 = 11
-        zendif
-
-        dec t2
-        zif eq
-            cpy t2len
-            zif lt
-                ldy t2len
-            zendif
-            lda t2p
-            sta t2
-        zendif
-
-        dec t3
-        zif eq
-            cpy t3len
-            zif lt
-                ldy t3len
-            zendif
-            lda t3p
-            sta t3
-        zendif
-
-        dec t4
-        zif eq
-            cpy t4len
-            zif lt
-                ldy t4len
-            zendif
-            lda t4p
-            sta t4
-        zendif
-
-        sty lastlen
-
-        ;jsr caramel_step
-
-        ; Spin for the rest of the tick.
-
-        lda #0x40
-        ;bit VIA_IFR
-        ;zif ne
-        ;    brk
-        ;zendif
-
+        lda #0x04
         zrepeat
             bit VIA_IFR
         zuntil ne
-    zendloop
 
-volume_bits:
-    .byte 0x80
-    .byte 0xc0
-    .byte 0xe0
-    .byte 0xf0
-    .byte 0xf8
-    .byte 0xfc
-    .byte 0xfe
+        ; Clear it and write the sample.
+
+        sta VIA_IFR
+        lda nextsample
+        sta VIA_SR
+    zendloop
+zendproc
+
+zproc synthesise
+    ldy #0
+
+.macro synth var, varp, varm
+    dec \var            ; 5
+    zif eq              ; 2
+        lda \varp       ; 3
+        sta \var        ; 3
+    zendif
+    lda \varm           ; 3
+    zif ne              ; 2
+        cmp \var        ; 3
+        zif cs          ; 2
+            iny         ; 2
+        zendif
+    zendif
+.endm                   ; = 25
+
+    synth t1, t1p, t1m
+    synth t2, t2p, t2m
+    synth t3, t3p, t3m
+    synth t4, t4p, t4m
+
+    cpy #1          ; sets C is >= 1
+    rol nextsample
+
+    rts
 zendproc

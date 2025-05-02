@@ -16,7 +16,7 @@ llvmrawprogram(
         ".+midinote_tab",
         "include/pet.inc",
         "include/zif.inc",
-        "src/caramel.S",
+        # "src/caramel.S",
         "src/bytecode.S",
         "src/caramel.inc",
         "src/globals.inc",

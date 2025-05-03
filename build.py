@@ -3,18 +3,10 @@ from build.llvm import llvmrawprogram
 
 simplerule(
     name="midinote_tab",
-    ins=["src/midinote.py"],
+    ins=["src/midinote.py", "src/samplerate.py"],
     outs=["=midinote.S"],
-    commands=["python3 $[ins] > $[outs]"],
+    commands=["python3 $[ins[0]] > $[outs]"],
     label="MIDINOTE",
-)
-
-simplerule(
-    name="kick_inc",
-    ins=["src/to3bit.py", "drums/kick.wav"],
-    outs=["=kick.inc"],
-    commands=["python3 $[ins] > $[outs]"],
-    label="TO3BIT"
 )
 
 llvmrawprogram(
@@ -22,12 +14,12 @@ llvmrawprogram(
     linkscript="src/pet.ld",
     srcs=[
         ".+midinote_tab",
-        ".+kick_inc",
         "include/pet.inc",
         "include/zif.inc",
         "src/globals.inc",
         "src/main.S",
         "src/pcmdata.S",
+        "src/samplerate.py",
     ],
 )
 

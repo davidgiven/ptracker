@@ -1,10 +1,9 @@
 import subprocess
 import sys
-
-SAMPLERATE = 16000 / 2
+from samplerate import SAMPLE_FREQ
 
 p = subprocess.Popen(
-    f"sox {sys.argv[1]} -r {SAMPLERATE} -c 1 -t u1 -",
+    f"sox {sys.argv[1]} -r {SAMPLE_FREQ/2} -c 1 -t u1 -",
     shell=True,
     stdout=subprocess.PIPE,
 )

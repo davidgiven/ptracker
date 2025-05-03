@@ -29,6 +29,7 @@ t4len:      .fill 1
 t4bitcount: .fill 1
 t4value:    .fill 1
 ticks:      .fill 1
+noise:      .fill 2
 
 nextsample: .fill 1
 
@@ -36,7 +37,7 @@ noteptr:    .fill 2
 notedelay:  .fill 2
 
 ; Match this with the value in midinote.py.
-SAMPLE_FREQ = 16000
+#include "samplerate.py"
 SAMPLE_PERIOD = 1000000 / SAMPLE_FREQ
 
 BITRATE = 3
@@ -70,10 +71,15 @@ zproc _start, .text.init
     sta VIA_T1C_L
     sta VIA_T1C_H
 
-    lda #0x0
+    lda #0x5
     sta t1m
     sta t2m
     sta t3m
+
+    lda #<2157              ; seed PRNG
+    sta noise+0
+    lda #>2157
+    sta noise+1
 
     lda #0
     sta VIA_SR
@@ -112,63 +118,14 @@ zproc interrupt_handler
         rol nextsample
     .endr
 
-    .if 0
     ldx t4ptr
     cpx t4len
     zif ne
-        inc ticks
-        lda ticks
-        and #1
-
-        zif eq
-            lda pcm_3bit_table, x
-            and #0x0f
-            tax
-            lda volume_table, x
-            eor nextsample
-            sta nextsample
-        zelse
-            lda pcm_3bit_table, x
-            lsr a
-            lsr a
-            lsr a
-            lsr a
-            tax
-            lda volume_table, x
-            eor nextsample
-            sta nextsample
-
-            inc t4ptr
-        zendif
+        lda pcm_table, x
+        eor nextsample
+        sta nextsample
+        inc t4ptr
     zendif
-    .endif
-
-    .if 0
-    inc ticks
-    lda ticks
-    and #0x01
-    zif eq
-        ldx t4ptr
-        cpx t4len
-        zif ne
-            ror t4value
-            zif cs
-                lda nextsample
-                ora #0x01
-                sta nextsample
-            zendif
-            dec t4bitcount
-            zif eq
-                inx
-                stx t4ptr
-                ldy pcm_table, x
-                sty t4value
-                ldy #8
-                sty t4bitcount
-            zendif 
-        zendif
-    zendif
-    .endif
 
     pla
     tay
@@ -225,9 +182,10 @@ zproc player
         zendif
 
         sei
-        lda #0
+        ldx #4
+        lda drum_instrument_table, x
         sta t4ptr
-        lda #153
+        lda drum_instrument_table+1, x
         sta t4len
         cli
 
@@ -249,8 +207,6 @@ zproc player
         .byte \n1, \n2, \n3
     .endm
 notedata:
-   ; note 1200, D4, Fs4, A3
-
     note 120, D4, Fs4, A3
     note 120, D4, G4, A3
     note 120, D4, Fs4, A3

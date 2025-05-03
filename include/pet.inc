@@ -15,6 +15,9 @@ VIA_PCR   = 0xe84c
 VIA_IFR   = 0xe84d
 VIA_IER   = 0xe84e
 
+IRQ_VECTOR = 0x0090
+BRK_VECTOR = 0x0092
+
 .macro blt label
     bcc \label
 .endm

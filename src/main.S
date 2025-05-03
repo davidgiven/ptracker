@@ -29,103 +29,476 @@ t3p:        .fill 1
 t4p:        .fill 1
 nextsample: .fill 1
 
-SAMPLE_FREQ = 30000
-SAMPLE_PERIOD = 1000000 / SAMPLE_FREQ
+noteptr:    .fill 2
+notedelay:  .fill 2
 
-N1 = ((1000000 / 262) / SAMPLE_PERIOD)
-N2 = ((1000000 / 330) / SAMPLE_PERIOD)
-N3 = ((1000000 / 392) / SAMPLE_PERIOD)
-N4 = ((1000000 / 523) / SAMPLE_PERIOD)
+; Match this with the value in midinote.py.
+SAMPLE_FREQ = 25000
+SAMPLE_PERIOD = 1000000 / SAMPLE_FREQ
 
 BITRATE = 3
 
 zproc _start, .text.init
     sei
 
-    lda #0x54 ; T1 continuous, SR under T2 control
+    lda #0xbc
+    sta PIA1_CRB            ; disable VSYNC interrupt
+
+    lda #0x54               ; T1 continuous, T2 one-shot, SR under T2 control
     sta VIA_ACR
 
-    lda #0xac
+    lda #0xac               ; CB2 outputs SR pulses
     sta VIA_PCR
+
+    lda #0x84
+    sta VIA_IER             ; generate software interrupts on SR empty
+
+    lda #<interrupt_handler ; set interrupt handler vector
+    sta IRQ_VECTOR+0
+    lda #>interrupt_handler
+    sta IRQ_VECTOR+1
 
     lda #lo(SAMPLE_PERIOD)
     sta VIA_T2C_L
     lda #hi(SAMPLE_PERIOD)
     sta VIA_T2C_H
 
-    lda #0
-    sta VIA_SR
-    sta t1
-    sta t2
-    sta t3
-    sta t4
+    lda #0                  ; T1 makes an interrupt every 65.536ms
+    sta VIA_T1C_L
+    sta VIA_T1C_H
 
-    lda #<N1
-    sta t1p
-    lda #<N2
-    sta t2p
-    lda #<N3
-    sta t3p
-    lda #<N4
-    sta t4p
-    lda #1
-    sta t1
-    sta t2
-    sta t3
-    sta t4
-    lda #5
+    lda #0x8
     sta t1m
     sta t2m
     sta t3m
+    lda #0
     sta t4m
 
-    zloop
-        ; Generate one sample-worth of data.
+    lda #0
+    sta VIA_SR
 
-        .rept 8
-            jsr synthesise
-        .endr
-
-        ; Wait for a shift register interrupt.
-
-        lda #0x04
-        zrepeat
-            bit VIA_IFR
-        zuntil ne
-
-        ; Clear it and write the sample.
-
-        sta VIA_IFR
-        lda nextsample
-        sta VIA_SR
-    zendloop
+    cli
+    jmp player
 zendproc
 
-zproc synthesise
-    ldy #0
+zproc interrupt_handler
+    lda #0x04           ; clear IFR flag (to allow seamless playback)
+    sta VIA_IFR
 
-.macro synth var, varp, varm
-    dec \var            ; 5
-    zif eq              ; 2
-        lda \varp       ; 3
-        sta \var        ; 3
-    zendif
-    lda \varm           ; 3
-    zif ne              ; 2
-        cmp \var        ; 3
-        zif cs          ; 2
-            iny         ; 2
+    lda nextsample
+    sta VIA_SR          ; play the previously calculated sample
+
+    ; Calculate the next sample, now timing isn't as tight.
+
+    .macro synth var, varp, varm
+        ldx \var            ; 3
+        dex                 ; 2
+        zif eq              ; 2
+            ldx \varp       ; 3
         zendif
-    zendif
-.endm                   ; = 25
+        stx \var            ; 3
+        cpx \varm           ; 3
+        zif cc              ; 2
+            iny             ; 2
+        zendif
+    .endm                   ; = 20
 
-    synth t1, t1p, t1m
-    synth t2, t2p, t2m
-    synth t3, t3p, t3m
-    synth t4, t4p, t4m
+    .rept 8
+        ldy #0
+        synth t1, t1p, t1m
+        synth t2, t2p, t2m
+        synth t3, t3p, t3m
+        ;synth t4, t4p, t4m
 
-    cpy #1          ; sets C is >= 1
-    rol nextsample
+        cpy #1          ; sets C is >= 1
+        rol nextsample
+    .endr
 
-    rts
+    pla
+    tay
+    pla
+    tax
+    pla
+    rti
+zendproc
+
+zproc player
+    lda #<notedata
+    sta noteptr+0
+    lda #>notedata
+    sta noteptr+1
+
+    zloop
+        ldy #0
+        lda (noteptr), y
+        sta notedelay+0
+        iny
+        lda (noteptr), y
+        sta notedelay+1
+
+        ora notedelay+0
+        beq player
+
+        iny
+        lda (noteptr), y
+        tax
+        lda midinote_table-21, x
+        sta t1p
+        sta 0x8000
+
+        iny
+        lda (noteptr), y
+        tax
+        lda midinote_table-21, x
+        sta t2p
+        sta 0x8001
+
+        iny
+        lda (noteptr), y
+        tax
+        lda midinote_table-21, x
+        sta t3p
+        sta 0x8002
+
+        clc
+        lda noteptr+0
+        adc #5
+        sta noteptr+0
+        zif cs
+            inc noteptr+1
+        zendif
+
+        zrepeat
+            lda #0x40
+            zrepeat
+                bit VIA_IFR
+            zuntil ne
+            sta VIA_IFR
+
+            dec16 notedelay
+            lda notedelay+0
+            ora notedelay+1
+        zuntil_eq
+    zendloop
+
+    .macro note d, n1, n2, n3
+        .word \d*7
+        .byte \n1+12, \n2+12, \n3+12
+    .endm
+notedata:
+    note 120, D4, Fs4, A3
+    note 120, D4, G4, A3
+    note 120, D4, Fs4, A3
+    note 120, D4, E4, A3
+    note 1800, C4, D4, G3
+    note 120, C4, D4, G3
+    note 120, C4, F4, G3
+    note 120, C4, G4, G3
+    note 120, C4, F4, G3
+    note 120, C4, C4, G3
+    note 120, B3, C4, G3
+    note 120, D4, D4, G3
+    note 120, B3, D4, G3
+    note 120, A3, D4, G3
+    note 120, G3, D4, G3
+    note 120, F3, D4, G3
+    note 120, G3, D4, G3
+    note 120, A3, D4, G3
+    note 120, D4, D4, G3
+    note 120, B3, B2, Fs3
+    note 120, Cs4, B2, Fs3
+    note 120, D4, B2, Fs3
+    note 120, Fs4, B2, Fs3
+    note 120, D4, B2, Fs3
+    note 120, Cs4, B2, Fs3
+    note 120, B3, B2, Fs3
+    note 120, A3, B2, Fs3
+    note 120, E4, A2, E3
+    note 120, D4, A2, E3
+    note 120, C4, A2, E3
+    note 120, B3, A2, E3
+    note 120, A3, A2, E3
+    note 120, G3, A2, E3
+    note 120, A3, A2, E3
+    note 120, B3, A2, E3
+    note 120, Ds4, Gs2, Ds3
+    note 120, Cs4, Gs2, Ds3
+    note 120, Ds4, Gs2, Ds3
+    note 120, Fs4, Gs2, Ds3
+    note 120, F4, Gs2, Ds3
+    note 120, Cs4, Gs2, Ds3
+    note 120, Ds4, Gs2, Ds3
+    note 120, Cs4, Gs2, Ds3
+    note 120, Ds4, Gs2, Ds3
+    note 120, B3, Gs2, Ds3
+    note 120, As3, Gs2, Ds3
+    note 120, Fs3, Gs2, Ds3
+    note 120, Gs3, Gs2, Ds3
+    note 120, Gs3, Gs2, Ds3
+    note 120, Gs3, Gs2, Ds3
+    note 120, Gs3, Gs2, Ds3
+    note 120, Cs4, B2, B2
+    note 120, Cs4, D4, B2
+    note 120, Cs4, Fs4, B2
+    note 120, Cs4, A4, B2
+    note 120, Cs4, B2, B2
+    note 120, Cs4, D4, B2
+    note 120, Cs4, Fs4, B2
+    note 120, Cs4, A4, B2
+    note 120, B3, D4, B2
+    note 120, D4, B2, B2
+    note 120, D4, Fs4, B2
+    note 120, D4, A4, B2
+    note 120, B3, D4, B2
+    note 120, D4, B2, B2
+    note 120, D4, Fs4, B2
+    note 120, D4, A4, B2
+    note 120, B3, A2, A2
+    note 120, B3, C4, A2
+    note 120, B3, E4, A2
+    note 120, B3, G4, A2
+    note 120, B3, A2, A2
+    note 120, B3, C4, A2
+    note 120, B3, E4, A2
+    note 120, B3, G4, A2
+    note 120, A3, C4, A2
+    note 120, C4, A2, A2
+    note 120, C4, E4, A2
+    note 120, C4, G4, A2
+    note 120, A3, C4, A2
+    note 120, C4, A2, A2
+    note 120, C4, E4, A2
+    note 120, C4, G4, A2
+    note 120, B3, B2, A3
+    note 120, D4, B2, A3
+    note 120, Fs4, B2, A3
+    note 120, A4, B2, A3
+    note 120, B3, B2, Fs3
+    note 120, D4, B2, Fs3
+    note 120, Fs4, B2, Fs3
+    note 120, A4, B2, Fs3
+    note 120, A3, A2, G3
+    note 120, C4, A2, G3
+    note 120, E4, A2, G3
+    note 120, G4, A2, G3
+    note 120, A3, A2, E3
+    note 120, C4, A2, E3
+    note 120, E4, A2, E3
+    note 120, G4, A2, E3
+    note 120, B3, B2, Fs3
+    note 120, D4, B2, Fs3
+    note 120, Fs4, B2, Fs3
+    note 120, A4, B2, Fs3
+    note 120, B3, B2, A3
+    note 120, D4, B2, A3
+    note 120, Fs4, B2, A3
+    note 120, A4, B2, A3
+    note 120, B3, B2, B3
+    note 120, D4, B2, B3
+    note 120, Fs4, B2, B3
+    note 120, A4, B2, B3
+    note 120, B3, B2, B3
+    note 120, D4, B2, B3
+    note 120, Fs4, B2, B3
+    note 120, A4, B2, B3
+    note 120, B3, B2, B2
+    note 120, C4, D4, B2
+    note 120, B3, Fs4, B2
+    note 120, C4, A4, B2
+    note 120, B3, B2, B2
+    note 120, C4, D4, B2
+    note 120, B3, Fs4, B2
+    note 120, C4, A4, B2
+    note 120, As3, C4, As2
+    note 120, Cs4, As2, As2
+    note 120, C4, F4, As2
+    note 120, Cs4, Gs4, As2
+    note 120, As3, C4, As2
+    note 120, Cs4, As2, As2
+    note 120, C4, F4, As2
+    note 120, Cs4, Gs4, As2
+    note 120, As3, C4, As2
+    note 120, Cs4, As2, As2
+    note 120, C4, F4, As2
+    note 120, Cs4, Gs4, As2
+    note 120, As3, C4, F3
+    note 120, Cs4, F3, F3
+    note 120, C4, F4, F3
+    note 120, Cs4, Gs4, F3
+    note 120, B3, A2, A2
+    note 120, B3, C4, A2
+    note 120, B3, E4, A2
+    note 120, B3, G4, A2
+    note 120, B3, A2, A2
+    note 120, B3, C4, A2
+    note 120, B3, E4, A3
+    note 120, B3, G4, A2
+    note 120, B3, E3, E3
+    note 120, B3, C4, G2
+    note 120, B3, E4, G2
+    note 120, B3, G4, G2
+    note 120, B3, G2, Fs2
+    note 120, B3, C4, G2
+    note 120, B3, E4, G2
+    note 120, B3, G4, G2
+    note 120, B3, G2, Fs2
+    note 120, B3, C4, G2
+    note 120, B3, E4, G2
+    note 120, B3, G4, G2
+    note 120, B3, G2, Fs2
+    note 120, B3, C4, G2
+    note 120, B3, E4, G2
+    note 120, B3, G4, G2
+    note 120, A3, B3, G2
+    note 120, A3, C4, G2
+    note 120, A3, E4, G2
+    note 120, A3, G4, G2
+    note 120, A3, B3, G2
+    note 120, A3, C4, G2
+    note 120, A3, E4, G2
+    note 120, A3, G4, G2
+    note 240, Cs4, E4, A2
+    note 240, B3, D4, A2
+    note 240, A3, Cs4, A2
+    note 240, B3, D4, A2
+    note 240, G3, B3, G2
+    note 240, A3, Cs4, G2
+    note 240, Cs4, E4, G2
+    note 240, A3, Cs4, G2
+    note 120, As3, Cs4, Fs3
+    note 120, As3, Fs3, Fs3
+    note 120, Fs3, As3, Fs3
+    note 120, As3, B3, Fs3
+    note 120, As3, Fs3, Fs3
+    note 120, Fs3, As3, Fs3
+    note 120, A3, B3, E3
+    note 120, A3, E3, E3
+    note 120, E3, A3, E3
+    note 120, A3, Cs4, E3
+    note 120, A3, E3, E3
+    note 120, E3, A3, E3
+    note 120, As3, Cs4, Fs3
+    note 120, As3, Fs3, Fs3
+    note 120, Fs3, As3, Fs3
+    note 120, As3, B3, Fs3
+    note 120, As3, Fs3, Fs3
+    note 120, Fs3, As3, Fs3
+    note 120, A3, B3, E3
+    note 120, A3, E3, E3
+    note 120, E3, A3, E3
+    note 120, Gs3, A3, E3
+    note 120, A3, E3, E3
+    note 120, E3, A3, E3
+    note 120, As3, As2, F3
+    note 120, As3, As2, F3
+    note 120, As3, As2, F3
+    note 120, As3, As2, F3
+    note 120, Gs3, As2, Ds3
+    note 120, As3, As2, F3
+    note 120, Gs3, As2, Ds3
+    note 120, As3, As2, F3
+    note 120, Cs4, As2, Fs3
+    note 120, As3, As2, Fs3
+    note 120, As3, As2, Fs3
+    note 120, As3, As2, Fs3
+    note 120, Gs3, As2, Fs3
+    note 120, As3, As2, Fs3
+    note 120, Cs4, As2, Fs3
+    note 120, As3, As2, Fs3
+    note 120, Ds4, As2, Gs3
+    note 120, C4, As2, Gs3
+    note 120, Gs3, As2, Gs3
+    note 120, F3, As2, Gs3
+    note 120, Gs3, As2, Gs3
+    note 120, C4, As2, Gs3
+    note 120, Ds4, As2, Gs3
+    note 120, Cs4, As2, Gs3
+    note 120, C4, As2, Gs3
+    note 120, Gs3, As2, Gs3
+    note 120, As3, As2, As3
+    note 120, As3, As2, As3
+    note 120, As3, As2, As3
+    note 120, As3, As2, As3
+    note 120, As3, As2, As3
+    note 120, As3, As2, As3
+    note 120, As2, As3, As3
+    note 120, As2, As3, As3
+    note 120, As2, As3, As3
+    note 240, Fs2, As2, As2
+    note 240, Fs2, As2, As2
+    note 120, F3, Gs3, As3
+    note 120, Fs2, As2, As2
+    note 120, Fs2, As2, As2
+    note 120, F3, Gs3, As3
+    note 120, Fs2, As2, As2
+    note 120, Fs2, As2, As2
+    note 120, F3, Gs3, As3
+    note 120, Fs2, As2, As2
+    note 480, Ds3, Gs3, A3
+    note 120, Cs3, Gs3, F4
+    note 120, Cs3, As3, D4
+    note 120, Cs3, Gs3, D4
+    note 120, Ds3, As3, Fs4
+    note 120, Ds3, C4, F4
+    note 120, Ds3, As3, E4
+    note 120, Cs3, Gs3, F4
+    note 120, Cs3, As3, Ds4
+    note 120, Cs3, Gs3, D4
+    note 120, Ds3, As3, Fs4
+    note 120, Ds3, C4, F4
+    note 120, Ds3, As3, E4
+    note 240, Fs2, As2, As2
+    note 240, Fs2, As2, As2
+    note 120, F3, Gs3, As3
+    note 120, Fs2, As2, As2
+    note 120, Fs2, As2, As2
+    note 120, F3, Gs3, As3
+    note 120, Fs2, As2, As2
+    note 120, Fs2, As2, As2
+    note 120, F3, Gs3, As3
+    note 120, Fs2, As2, As2
+    note 480, G3, As3, C4
+    note 120, Cs3, Gs3, F4
+    note 120, Fs4, Cs3, As3
+    note 120, F4, Cs3, Gs3
+    note 120, As4, Ds3, As3
+    note 120, Gs4, Ds3, C4
+    note 120, G4, Ds3, As3
+    note 120, Fs4, B2, Fs3
+    note 120, E4, B2, Gs3
+    note 120, Ds4, B2, Fs3
+    note 120, Gs4, Cs3, Gs3
+    note 120, Fs4, Cs3, As3
+    note 120, F4, Cs3, Gs3
+    note 120, E4, A2, E3
+    note 120, D4, A2, Fs3
+    note 120, Cs4, A2, E3
+    note 120, Fs4, B2, Fs3
+    note 120, E4, B2, Gs3
+    note 120, Ds4, B2, Fs3
+    note 120, Gs4, Cs3, Gs3
+    note 120, Fs4, Cs3, As3
+    note 120, F4, Cs3, Gs3
+    note 120, As4, Ds3, As3
+    note 120, Gs4, Ds3, C4
+    note 120, G4, Ds3, As3
+    note 120, C5, F3, C4
+    note 120, As4, F3, D4
+    note 120, A4, F3, C4
+    note 120, As4, F3, D4
+    note 120, C5, F3, C4
+    note 120, As4, F3, D4
+    note 120, A4, F3, C4
+    note 120, As4, F3, D4
+    note 120, C5, F3, C4
+    note 120, As4, F3, D4
+    note 120, A4, F3, C4
+    note 120, As4, F3, D4
+    note 120, C5, F3, C4
+    note 120, As4, F3, D4
+    note 120, A4, F3, C4
+    note 120, As4, F3, D4
+    note 2849, A4, F3, C4
+    .word 0
+
 zendproc

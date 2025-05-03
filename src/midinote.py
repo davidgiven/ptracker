@@ -1,18 +1,18 @@
 print("""
-.global midinote_hi, midinote_lo
+.global midinote_table
 .data
 """)
 
+SAMPLE_FREQ = 25000
+
 def period(n):
     freq = (2 ** ((n-69)/12))*440
-    return int(1e6 / freq)
+    return int(SAMPLE_FREQ / freq)
 
-print("midinote_lo:")
+print("midinote_table:")
 for n in range(21, 109):
     p = period(n)
-    print(f" .byte {p & 0xff}")
-
-print("midinote_hi:")
-for n in range(21, 109):
-    p = period(n)
-    print(f" .byte {p >> 8}")
+    if p < 256:
+        print(f" .byte {p}")
+    else:
+        print(" .byte 0")

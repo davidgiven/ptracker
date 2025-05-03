@@ -9,15 +9,25 @@ simplerule(
     label="MIDINOTE",
 )
 
+simplerule(
+    name="kick_inc",
+    ins=["src/to3bit.py", "drums/kick.wav"],
+    outs=["=kick.inc"],
+    commands=["python3 $[ins] > $[outs]"],
+    label="TO3BIT"
+)
+
 llvmrawprogram(
     name="ptracker_elf",
     linkscript="src/pet.ld",
     srcs=[
         ".+midinote_tab",
+        ".+kick_inc",
         "include/pet.inc",
         "include/zif.inc",
         "src/globals.inc",
         "src/main.S",
+        "src/pcmdata.S",
     ],
 )
 

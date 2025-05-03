@@ -18,22 +18,25 @@ zendproc
 t1:         .fill 1
 t2:         .fill 1
 t3:         .fill 1
-t4:         .fill 1
 t1m:        .fill 1
 t2m:        .fill 1
 t3m:        .fill 1
-t4m:        .fill 1
 t1p:        .fill 1
 t2p:        .fill 1
 t3p:        .fill 1
-t4p:        .fill 1
+t4ptr:      .fill 1
+t4len:      .fill 1
+t4bitcount: .fill 1
+t4value:    .fill 1
+ticks:      .fill 1
+
 nextsample: .fill 1
 
 noteptr:    .fill 2
 notedelay:  .fill 2
 
 ; Match this with the value in midinote.py.
-SAMPLE_FREQ = 25000
+SAMPLE_FREQ = 16000
 SAMPLE_PERIOD = 1000000 / SAMPLE_FREQ
 
 BITRATE = 3
@@ -58,21 +61,19 @@ zproc _start, .text.init
     lda #>interrupt_handler
     sta IRQ_VECTOR+1
 
-    lda #lo(SAMPLE_PERIOD)
+    lda #lo(SAMPLE_PERIOD/2) ; one bit is clocked out every _two_ T2 ticks
     sta VIA_T2C_L
-    lda #hi(SAMPLE_PERIOD)
+    lda #hi(SAMPLE_PERIOD/2)
     sta VIA_T2C_H
 
     lda #0                  ; T1 makes an interrupt every 65.536ms
     sta VIA_T1C_L
     sta VIA_T1C_H
 
-    lda #0x8
+    lda #0x0
     sta t1m
     sta t2m
     sta t3m
-    lda #0
-    sta t4m
 
     lda #0
     sta VIA_SR
@@ -93,26 +94,81 @@ zproc interrupt_handler
     .macro synth var, varp, varm
         ldx \var            ; 3
         dex                 ; 2
-        zif eq              ; 2
+        zif eq              ; 2/3
             ldx \varp       ; 3
         zendif
         stx \var            ; 3
         cpx \varm           ; 3
-        zif cc              ; 2
-            iny             ; 2
-        zendif
-    .endm                   ; = 20
+        adc #0xff           ; 2
+    .endm                   ; = 18
 
     .rept 8
-        ldy #0
+        lda #0
         synth t1, t1p, t1m
         synth t2, t2p, t2m
         synth t3, t3p, t3m
-        ;synth t4, t4p, t4m
 
-        cpy #1          ; sets C is >= 1
+        cmp #1          ; sets C if >= 1
         rol nextsample
     .endr
+
+    .if 0
+    ldx t4ptr
+    cpx t4len
+    zif ne
+        inc ticks
+        lda ticks
+        and #1
+
+        zif eq
+            lda pcm_3bit_table, x
+            and #0x0f
+            tax
+            lda volume_table, x
+            eor nextsample
+            sta nextsample
+        zelse
+            lda pcm_3bit_table, x
+            lsr a
+            lsr a
+            lsr a
+            lsr a
+            tax
+            lda volume_table, x
+            eor nextsample
+            sta nextsample
+
+            inc t4ptr
+        zendif
+    zendif
+    .endif
+
+    .if 0
+    inc ticks
+    lda ticks
+    and #0x01
+    zif eq
+        ldx t4ptr
+        cpx t4len
+        zif ne
+            ror t4value
+            zif cs
+                lda nextsample
+                ora #0x01
+                sta nextsample
+            zendif
+            dec t4bitcount
+            zif eq
+                inx
+                stx t4ptr
+                ldy pcm_table, x
+                sty t4value
+                ldy #8
+                sty t4bitcount
+            zendif 
+        zendif
+    zendif
+    .endif
 
     pla
     tay
@@ -168,6 +224,13 @@ zproc player
             inc noteptr+1
         zendif
 
+        sei
+        lda #0
+        sta t4ptr
+        lda #153
+        sta t4len
+        cli
+
         zrepeat
             lda #0x40
             zrepeat
@@ -183,9 +246,11 @@ zproc player
 
     .macro note d, n1, n2, n3
         .word \d*7
-        .byte \n1+12, \n2+12, \n3+12
+        .byte \n1, \n2, \n3
     .endm
 notedata:
+   ; note 1200, D4, Fs4, A3
+
     note 120, D4, Fs4, A3
     note 120, D4, G4, A3
     note 120, D4, Fs4, A3
@@ -502,3 +567,6 @@ notedata:
     .word 0
 
 zendproc
+
+.data
+pcm_table:

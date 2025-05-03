@@ -3,7 +3,7 @@ print("""
 .data
 """)
 
-SAMPLE_FREQ = 25000
+SAMPLE_FREQ = 16000
 
 def period(n):
     freq = (2 ** ((n-69)/12))*440

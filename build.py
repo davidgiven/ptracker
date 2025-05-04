@@ -19,6 +19,9 @@ llvmrawprogram(
         "src/globals.inc",
         "src/main.S",
         "src/pcmdata.S",
+        "src/patterned.S",
+        "src/screenutils.S",
+        "src/filedata.S",
         "src/samplerate.py",
     ],
 )

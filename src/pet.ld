@@ -6,6 +6,7 @@ MEMORY {
 SECTIONS {
 	.zp : {
 		*(.zp .zp.*)
+		__last_zp = .;
 	} >zp
 
 	.text : {
@@ -14,5 +15,9 @@ SECTIONS {
 		*(.text .text.*)
 	} >ram
 	.data : { *(.data .data.* .rodata .rodata.*) } >ram
-	.noinit (NOLOAD) : { *(.noinit .noinit.*) } >ram
+	.noinit (NOLOAD) : {
+		*(.noinit .noinit.*)
+		. = ALIGN(., 0x100);
+		*(.filedata)
+	} >ram
 }

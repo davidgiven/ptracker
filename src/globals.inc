@@ -21,28 +21,34 @@
     dec 0+\var
 .endm
 
+#define BYTE .byte
+
+; One pattern is 256 bytes.
+SEQUENCE_LENGTH = 128
+NUM_STEPS = 32
+NOTE_LENGTH = 2 ; pitch, volume/tone; or: command, param
+MAX_PATTERNS = 70
+NUM_VOICES = 4
+TONE_SAMPLES = 64
+
+; Notes
+
+NUM_PITCHES = 201
+FIRST_COMMAND = 256-26
+
+ROW_LENGTH = NOTE_LENGTH * NUM_VOICES
+
+
 .extern midinote_table
 
-.zeropage t1_l
-.zeropage t2_l
-.zeropage t3_l
-.zeropage t4_l
-.zeropage t1_h
-.zeropage t2_h
-.zeropage t3_h
-.zeropage t4_h
-.zeropage t1p_l
-.zeropage t2p_l
-.zeropage t3p_l
-.zeropage t4p_l
-.zeropage t1p_h
-.zeropage t2p_h
-.zeropage t3p_h
-.zeropage t4p_h
-.zeropage t1len
-.zeropage t2len
-.zeropage t3len
-.zeropage t4len
+.zeropage w
+.zeropage scrptr
+
+.extern sequence
+.extern tempo
+.extern patternlength
+.extern numpatterns
+.extern sequencelength
 
 #define G9  127
 #define Fs9 126

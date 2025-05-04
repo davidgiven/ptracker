@@ -3,8 +3,8 @@
     #include "globals.inc"
 
 zproc _init, .text.header
-    .word oadaddr
-oadaddr:
+    .word loadaddr
+loadaddr:
     .word _entry_string_end, 1
     .byte 0x9e
     .ascii "1037" ; decimal address of _start
@@ -14,6 +14,9 @@ _entry_string_end:
 zendproc
 
 .section .zp, "zax", @nobits
+
+.global w
+w:          .fill 2 ; general purpose temp
 
 t1:         .fill 1
 t2:         .fill 1
@@ -26,15 +29,8 @@ t2p:        .fill 1
 t3p:        .fill 1
 t4ptr:      .fill 1
 t4len:      .fill 1
-t4bitcount: .fill 1
-t4value:    .fill 1
-ticks:      .fill 1
-noise:      .fill 2
 
 nextsample: .fill 1
-
-noteptr:    .fill 2
-notedelay:  .fill 2
 
 ; Match this with the value in midinote.py.
 #include "samplerate.py"
@@ -45,13 +41,24 @@ BITRATE = 3
 zproc _start, .text.init
     sei
 
+    ; Clear zero page.
+
+    ldx #__last_zp-1
+    lda #0
+    zrepeat
+        sta 0, x
+        dex
+    zuntil mi
+
+    jsr init_screen
+
     lda #0xbc
     sta PIA1_CRB            ; disable VSYNC interrupt
 
     lda #0x54               ; T1 continuous, T2 one-shot, SR under T2 control
     sta VIA_ACR
 
-    lda #0xac               ; CB2 outputs SR pulses
+    lda #0xae               ; CB2 outputs SR pulses; lower case mode
     sta VIA_PCR
 
     lda #0x84
@@ -71,21 +78,11 @@ zproc _start, .text.init
     sta VIA_T1C_L
     sta VIA_T1C_H
 
-    lda #0x5
-    sta t1m
-    sta t2m
-    sta t3m
-
-    lda #<2157              ; seed PRNG
-    sta noise+0
-    lda #>2157
-    sta noise+1
-
     lda #0
     sta VIA_SR
 
     cli
-    jmp player
+    jmp pattern_editor
 zendproc
 
 zproc interrupt_handler
@@ -135,6 +132,7 @@ zproc interrupt_handler
     rti
 zendproc
 
+.if 0
 zproc player
     lda #<notedata
     sta noteptr+0
@@ -202,327 +200,8 @@ zproc player
         zuntil_eq
     zendloop
 
-    .macro note d, n1, n2, n3
-        .word \d*7
-        .byte \n1, \n2, \n3
-    .endm
-notedata:
-    note 120, D4, Fs4, A3
-    note 120, D4, G4, A3
-    note 120, D4, Fs4, A3
-    note 120, D4, E4, A3
-    note 1800, C4, D4, G3
-    note 120, C4, D4, G3
-    note 120, C4, F4, G3
-    note 120, C4, G4, G3
-    note 120, C4, F4, G3
-    note 120, C4, C4, G3
-    note 120, B3, C4, G3
-    note 120, D4, D4, G3
-    note 120, B3, D4, G3
-    note 120, A3, D4, G3
-    note 120, G3, D4, G3
-    note 120, F3, D4, G3
-    note 120, G3, D4, G3
-    note 120, A3, D4, G3
-    note 120, D4, D4, G3
-    note 120, B3, B2, Fs3
-    note 120, Cs4, B2, Fs3
-    note 120, D4, B2, Fs3
-    note 120, Fs4, B2, Fs3
-    note 120, D4, B2, Fs3
-    note 120, Cs4, B2, Fs3
-    note 120, B3, B2, Fs3
-    note 120, A3, B2, Fs3
-    note 120, E4, A2, E3
-    note 120, D4, A2, E3
-    note 120, C4, A2, E3
-    note 120, B3, A2, E3
-    note 120, A3, A2, E3
-    note 120, G3, A2, E3
-    note 120, A3, A2, E3
-    note 120, B3, A2, E3
-    note 120, Ds4, Gs2, Ds3
-    note 120, Cs4, Gs2, Ds3
-    note 120, Ds4, Gs2, Ds3
-    note 120, Fs4, Gs2, Ds3
-    note 120, F4, Gs2, Ds3
-    note 120, Cs4, Gs2, Ds3
-    note 120, Ds4, Gs2, Ds3
-    note 120, Cs4, Gs2, Ds3
-    note 120, Ds4, Gs2, Ds3
-    note 120, B3, Gs2, Ds3
-    note 120, As3, Gs2, Ds3
-    note 120, Fs3, Gs2, Ds3
-    note 120, Gs3, Gs2, Ds3
-    note 120, Gs3, Gs2, Ds3
-    note 120, Gs3, Gs2, Ds3
-    note 120, Gs3, Gs2, Ds3
-    note 120, Cs4, B2, B2
-    note 120, Cs4, D4, B2
-    note 120, Cs4, Fs4, B2
-    note 120, Cs4, A4, B2
-    note 120, Cs4, B2, B2
-    note 120, Cs4, D4, B2
-    note 120, Cs4, Fs4, B2
-    note 120, Cs4, A4, B2
-    note 120, B3, D4, B2
-    note 120, D4, B2, B2
-    note 120, D4, Fs4, B2
-    note 120, D4, A4, B2
-    note 120, B3, D4, B2
-    note 120, D4, B2, B2
-    note 120, D4, Fs4, B2
-    note 120, D4, A4, B2
-    note 120, B3, A2, A2
-    note 120, B3, C4, A2
-    note 120, B3, E4, A2
-    note 120, B3, G4, A2
-    note 120, B3, A2, A2
-    note 120, B3, C4, A2
-    note 120, B3, E4, A2
-    note 120, B3, G4, A2
-    note 120, A3, C4, A2
-    note 120, C4, A2, A2
-    note 120, C4, E4, A2
-    note 120, C4, G4, A2
-    note 120, A3, C4, A2
-    note 120, C4, A2, A2
-    note 120, C4, E4, A2
-    note 120, C4, G4, A2
-    note 120, B3, B2, A3
-    note 120, D4, B2, A3
-    note 120, Fs4, B2, A3
-    note 120, A4, B2, A3
-    note 120, B3, B2, Fs3
-    note 120, D4, B2, Fs3
-    note 120, Fs4, B2, Fs3
-    note 120, A4, B2, Fs3
-    note 120, A3, A2, G3
-    note 120, C4, A2, G3
-    note 120, E4, A2, G3
-    note 120, G4, A2, G3
-    note 120, A3, A2, E3
-    note 120, C4, A2, E3
-    note 120, E4, A2, E3
-    note 120, G4, A2, E3
-    note 120, B3, B2, Fs3
-    note 120, D4, B2, Fs3
-    note 120, Fs4, B2, Fs3
-    note 120, A4, B2, Fs3
-    note 120, B3, B2, A3
-    note 120, D4, B2, A3
-    note 120, Fs4, B2, A3
-    note 120, A4, B2, A3
-    note 120, B3, B2, B3
-    note 120, D4, B2, B3
-    note 120, Fs4, B2, B3
-    note 120, A4, B2, B3
-    note 120, B3, B2, B3
-    note 120, D4, B2, B3
-    note 120, Fs4, B2, B3
-    note 120, A4, B2, B3
-    note 120, B3, B2, B2
-    note 120, C4, D4, B2
-    note 120, B3, Fs4, B2
-    note 120, C4, A4, B2
-    note 120, B3, B2, B2
-    note 120, C4, D4, B2
-    note 120, B3, Fs4, B2
-    note 120, C4, A4, B2
-    note 120, As3, C4, As2
-    note 120, Cs4, As2, As2
-    note 120, C4, F4, As2
-    note 120, Cs4, Gs4, As2
-    note 120, As3, C4, As2
-    note 120, Cs4, As2, As2
-    note 120, C4, F4, As2
-    note 120, Cs4, Gs4, As2
-    note 120, As3, C4, As2
-    note 120, Cs4, As2, As2
-    note 120, C4, F4, As2
-    note 120, Cs4, Gs4, As2
-    note 120, As3, C4, F3
-    note 120, Cs4, F3, F3
-    note 120, C4, F4, F3
-    note 120, Cs4, Gs4, F3
-    note 120, B3, A2, A2
-    note 120, B3, C4, A2
-    note 120, B3, E4, A2
-    note 120, B3, G4, A2
-    note 120, B3, A2, A2
-    note 120, B3, C4, A2
-    note 120, B3, E4, A3
-    note 120, B3, G4, A2
-    note 120, B3, E3, E3
-    note 120, B3, C4, G2
-    note 120, B3, E4, G2
-    note 120, B3, G4, G2
-    note 120, B3, G2, Fs2
-    note 120, B3, C4, G2
-    note 120, B3, E4, G2
-    note 120, B3, G4, G2
-    note 120, B3, G2, Fs2
-    note 120, B3, C4, G2
-    note 120, B3, E4, G2
-    note 120, B3, G4, G2
-    note 120, B3, G2, Fs2
-    note 120, B3, C4, G2
-    note 120, B3, E4, G2
-    note 120, B3, G4, G2
-    note 120, A3, B3, G2
-    note 120, A3, C4, G2
-    note 120, A3, E4, G2
-    note 120, A3, G4, G2
-    note 120, A3, B3, G2
-    note 120, A3, C4, G2
-    note 120, A3, E4, G2
-    note 120, A3, G4, G2
-    note 240, Cs4, E4, A2
-    note 240, B3, D4, A2
-    note 240, A3, Cs4, A2
-    note 240, B3, D4, A2
-    note 240, G3, B3, G2
-    note 240, A3, Cs4, G2
-    note 240, Cs4, E4, G2
-    note 240, A3, Cs4, G2
-    note 120, As3, Cs4, Fs3
-    note 120, As3, Fs3, Fs3
-    note 120, Fs3, As3, Fs3
-    note 120, As3, B3, Fs3
-    note 120, As3, Fs3, Fs3
-    note 120, Fs3, As3, Fs3
-    note 120, A3, B3, E3
-    note 120, A3, E3, E3
-    note 120, E3, A3, E3
-    note 120, A3, Cs4, E3
-    note 120, A3, E3, E3
-    note 120, E3, A3, E3
-    note 120, As3, Cs4, Fs3
-    note 120, As3, Fs3, Fs3
-    note 120, Fs3, As3, Fs3
-    note 120, As3, B3, Fs3
-    note 120, As3, Fs3, Fs3
-    note 120, Fs3, As3, Fs3
-    note 120, A3, B3, E3
-    note 120, A3, E3, E3
-    note 120, E3, A3, E3
-    note 120, Gs3, A3, E3
-    note 120, A3, E3, E3
-    note 120, E3, A3, E3
-    note 120, As3, As2, F3
-    note 120, As3, As2, F3
-    note 120, As3, As2, F3
-    note 120, As3, As2, F3
-    note 120, Gs3, As2, Ds3
-    note 120, As3, As2, F3
-    note 120, Gs3, As2, Ds3
-    note 120, As3, As2, F3
-    note 120, Cs4, As2, Fs3
-    note 120, As3, As2, Fs3
-    note 120, As3, As2, Fs3
-    note 120, As3, As2, Fs3
-    note 120, Gs3, As2, Fs3
-    note 120, As3, As2, Fs3
-    note 120, Cs4, As2, Fs3
-    note 120, As3, As2, Fs3
-    note 120, Ds4, As2, Gs3
-    note 120, C4, As2, Gs3
-    note 120, Gs3, As2, Gs3
-    note 120, F3, As2, Gs3
-    note 120, Gs3, As2, Gs3
-    note 120, C4, As2, Gs3
-    note 120, Ds4, As2, Gs3
-    note 120, Cs4, As2, Gs3
-    note 120, C4, As2, Gs3
-    note 120, Gs3, As2, Gs3
-    note 120, As3, As2, As3
-    note 120, As3, As2, As3
-    note 120, As3, As2, As3
-    note 120, As3, As2, As3
-    note 120, As3, As2, As3
-    note 120, As3, As2, As3
-    note 120, As2, As3, As3
-    note 120, As2, As3, As3
-    note 120, As2, As3, As3
-    note 240, Fs2, As2, As2
-    note 240, Fs2, As2, As2
-    note 120, F3, Gs3, As3
-    note 120, Fs2, As2, As2
-    note 120, Fs2, As2, As2
-    note 120, F3, Gs3, As3
-    note 120, Fs2, As2, As2
-    note 120, Fs2, As2, As2
-    note 120, F3, Gs3, As3
-    note 120, Fs2, As2, As2
-    note 480, Ds3, Gs3, A3
-    note 120, Cs3, Gs3, F4
-    note 120, Cs3, As3, D4
-    note 120, Cs3, Gs3, D4
-    note 120, Ds3, As3, Fs4
-    note 120, Ds3, C4, F4
-    note 120, Ds3, As3, E4
-    note 120, Cs3, Gs3, F4
-    note 120, Cs3, As3, Ds4
-    note 120, Cs3, Gs3, D4
-    note 120, Ds3, As3, Fs4
-    note 120, Ds3, C4, F4
-    note 120, Ds3, As3, E4
-    note 240, Fs2, As2, As2
-    note 240, Fs2, As2, As2
-    note 120, F3, Gs3, As3
-    note 120, Fs2, As2, As2
-    note 120, Fs2, As2, As2
-    note 120, F3, Gs3, As3
-    note 120, Fs2, As2, As2
-    note 120, Fs2, As2, As2
-    note 120, F3, Gs3, As3
-    note 120, Fs2, As2, As2
-    note 480, G3, As3, C4
-    note 120, Cs3, Gs3, F4
-    note 120, Fs4, Cs3, As3
-    note 120, F4, Cs3, Gs3
-    note 120, As4, Ds3, As3
-    note 120, Gs4, Ds3, C4
-    note 120, G4, Ds3, As3
-    note 120, Fs4, B2, Fs3
-    note 120, E4, B2, Gs3
-    note 120, Ds4, B2, Fs3
-    note 120, Gs4, Cs3, Gs3
-    note 120, Fs4, Cs3, As3
-    note 120, F4, Cs3, Gs3
-    note 120, E4, A2, E3
-    note 120, D4, A2, Fs3
-    note 120, Cs4, A2, E3
-    note 120, Fs4, B2, Fs3
-    note 120, E4, B2, Gs3
-    note 120, Ds4, B2, Fs3
-    note 120, Gs4, Cs3, Gs3
-    note 120, Fs4, Cs3, As3
-    note 120, F4, Cs3, Gs3
-    note 120, As4, Ds3, As3
-    note 120, Gs4, Ds3, C4
-    note 120, G4, Ds3, As3
-    note 120, C5, F3, C4
-    note 120, As4, F3, D4
-    note 120, A4, F3, C4
-    note 120, As4, F3, D4
-    note 120, C5, F3, C4
-    note 120, As4, F3, D4
-    note 120, A4, F3, C4
-    note 120, As4, F3, D4
-    note 120, C5, F3, C4
-    note 120, As4, F3, D4
-    note 120, A4, F3, C4
-    note 120, As4, F3, D4
-    note 120, C5, F3, C4
-    note 120, As4, F3, D4
-    note 120, A4, F3, C4
-    note 120, As4, F3, D4
-    note 2849, A4, F3, C4
-    .word 0
-
 zendproc
+.endif
 
 .data
 pcm_table:

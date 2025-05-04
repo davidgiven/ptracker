@@ -6,6 +6,11 @@ ZEROPAGE
 
 running_flag: .fill 1
 
+.global t1, t2, t3
+.global t1m, t2m, t3m
+.global t1p, t2p, t3p
+.global t4ptr, t4len
+
 t1:         .fill 1
 t2:         .fill 1
 t3:         .fill 1
@@ -91,19 +96,6 @@ zproc stop_engine
         lda old_interrupt_vector+1
         sta IRQ_VECTOR+1
 
-        ; Force an immediate VSYNC interrupt.
-
-        lda #>1f
-        pha
-        lda #<1f
-        pha
-        php                     ; P
-        php                     ; A
-        php                     ; Y
-        php                     ; X
-        jmp (IRQ_VECTOR)
-1:
-
         inc running_flag
         lda #'N'
         sta VRAM+39
@@ -163,3 +155,20 @@ zproc interrupt_handler
     pla
     rti
 zendproc
+        
+zproc keyboard_interrupt
+    ; Force an immediate VSYNC interrupt.
+
+    lda #>1f
+    pha
+    lda #<1f
+    pha
+    php                     ; P
+    php                     ; A
+    php                     ; Y
+    php                     ; X
+    jmp (old_interrupt_vector)
+1:
+    rts
+zendproc
+

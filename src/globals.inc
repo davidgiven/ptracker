@@ -59,7 +59,8 @@ TONE_SAMPLES = 64
 
 ; Notes
 
-NUM_PITCHES = 201
+#include "samplerate.py"
+NUM_PITCHES = 36*OCTAVES
 FIRST_COMMAND = 256-26
 
 ROW_LENGTH = NOTE_LENGTH * NUM_VOICES
@@ -77,3 +78,67 @@ ROW_LENGTH = NOTE_LENGTH * NUM_VOICES
 .extern sequencelength
 
 .extern pcm_table
+
+.zeropage t1
+.zeropage t2
+.zeropage t3
+.zeropage t1m
+.zeropage t2m
+.zeropage t3m
+.zeropage t1p
+.zeropage t2p
+.zeropage t3p
+.zeropage t4ptr
+.zeropage t4len
+
+C_0  = 0*36+0
+CS_0 = 0*36+3
+D_0  = 0*36+6
+DS_0 = 0*36+9
+E_0  = 0*36+12
+F_0  = 0*36+15
+FS_0 = 0*36+18
+G_0  = 0*36+21
+GS_0 = 0*36+24
+A_0  = 0*36+27
+AS_0 = 0*36+30
+B_0  = 0*36+33
+
+C_1  = 1*36+0
+CS_1 = 1*36+3
+D_1  = 1*36+6
+DS_1 = 1*36+9
+E_1  = 1*36+12
+F_1  = 1*36+15
+FS_1 = 1*36+18
+G_1  = 1*36+21
+GS_1 = 1*36+24
+A_1  = 1*36+27
+AS_1 = 1*36+30
+B_1  = 1*36+33
+
+C_2  = 2*36+0
+CS_2 = 2*36+3
+D_2  = 2*36+6
+DS_2 = 2*36+9
+E_2  = 2*36+12
+F_2  = 2*36+15
+FS_2 = 2*36+18
+G_2  = 2*36+21
+GS_2 = 2*36+24
+A_2  = 2*36+27
+AS_2 = 2*36+30
+B_2  = 2*36+33
+
+C_3  = 3*36+0
+CS_3 = 3*36+3
+D_3  = 3*36+6
+DS_3 = 3*36+9
+E_3  = 3*36+12
+F_3  = 3*36+15
+FS_3 = 3*36+18
+G_3  = 3*36+21
+GS_3 = 3*36+24
+A_3  = 3*36+27
+AS_3 = 3*36+30
+B_3  = 3*36+33

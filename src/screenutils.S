@@ -92,16 +92,8 @@ zendproc
 ; Moves the cursor to the address at YYXX.
 
 zproc move_cursor
-    lda #14
-    sta CRTC_ADDRESS
-    tya
-    sec
-    sbc #0x54
-    sta CRTC_DATA
-    lda #15
-    sta CRTC_ADDRESS
-    txa
-    sta CRTC_DATA
+    stx curptr+0
+    sty curptr+1
     rts
 zendproc
 

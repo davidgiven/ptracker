@@ -9,7 +9,17 @@ rowno:          .fill 1 ; current row number
 disptr:         .fill 2 ; pointer to row being displayed
 disrow:         .fill 1 ; row number being displayed
 patternno:      .fill 1 ; current pattern number
+cursorx:        .fill 1 ; position of cursor (0-15)
+seqindex:       .fill 1 ; current index into the sequence
 looping_flag:   .fill 1
+
+LINE_PADDING = 4
+MIDDLE_ROW = 16
+PATTERN_NUMBER_ADDRESS = VRAM + 4*40 + 19
+TEMPO_ADDRESS = VRAM + 4*40 + 16
+PATTERNLENGTH_ADDRESS = VRAM + 5*40 + 16
+MUTE_ADDRESS = VRAM + 7*40 + 7
+MIDDLE_ROW_ADDRESS = VRAM + (MIDDLE_ROW)*40
 
 ; Compute rowptr based on patternno and rowno.
 
@@ -39,14 +49,31 @@ zproc pattern_editor
 zendproc
         
 zproc do_patterneditor_keypress
+    ; Place the cursor.
+
+    ldy cursorx
+    ldx editor_cursor_table, y
+    ldy #>MIDDLE_ROW_ADDRESS
+    jsr move_cursor
+
+    jsr play_current_note
+    jsr cursor_on
     zrepeat
         jsr start_engine
         zrepeat
             jsr is_key_pressed
+        zuntil eq
+        jsr keyboard_interrupt
+        zrepeat
+            jsr is_key_pressed
         zuntil ne
+        jsr keyboard_interrupt
         jsr stop_engine
         jsr GETIN
     zuntil ne
+    pha
+    jsr cursor_off
+    pla
 
     pha
     ldx #<VRAM
@@ -57,12 +84,55 @@ zproc do_patterneditor_keypress
     pla
 
     key_lookup key_table
+    
+    cmp #'A'
+    zif ge
+        cmp #'Z'+1
+        blt letter_key
+    zendif
+
+    cmp #'0'
+    zif ge
+        cmp #'9'+1
+        blt number_key
+    zendif
     rts
 
 key_table:
+    key 0x03, key_esc
     key 0x11, key_down
     key 0x91, key_up
+    key 0x1d, key_right
+    key 0x9d, key_left
+    key 0x12, key_tab
+    key 0x2d, key_decrement
+    key 0x2b, key_increment
     .byte 0
+zendproc
+
+zproc number_key
+    ora #0x10
+    sec
+    sbc #'0'
+    jmp set_value
+zendproc
+
+zproc letter_key
+    sec
+    sbc #'A'-10
+    jmp set_value
+zendproc
+
+zproc key_esc
+    sei
+    lda #0
+    sta t1m
+    sta t2m
+    sta t3m
+    sta t4ptr
+    sta t4len
+    cli
+    rts
 zendproc
 
 zproc key_up
@@ -81,6 +151,42 @@ zproc key_down
     and #NUM_STEPS-1
     sta rowno
     rts
+zendproc
+
+zproc key_left
+    lda cursorx
+    zif ne
+        dec cursorx
+    zendif
+    rts
+zendproc
+
+zproc key_right
+    lda cursorx
+    cmp #15
+    zif ne
+        inc cursorx
+    zendif
+    rts
+zendproc
+
+zproc key_tab
+    lda cursorx
+    clc
+    adc #4
+    and #15
+    sta cursorx
+    rts
+zendproc
+
+zproc key_increment
+    lda #1
+    jmp adjust_value
+zendproc
+
+zproc key_decrement
+    lda #<-1
+    jmp adjust_value
 zendproc
 
 zproc setup_screen_for_pattern_editor
@@ -105,13 +211,16 @@ BYTE 0x20,0x20,0x20,0x20,0x20,0x20,0x70,0x40,0x40,0x40,0x6E,0x20,0x20,0x70,0x40,
 BYTE 0x40,0x40,0x40,0x40,0x40,0x40,0x7D,0x43,0x48,0x31,0x6D,0x40,0x40,0x7D,0x43,0x48,0x32,0x6D,0x40,0x40,0x7D,0x43,0x48,0x33,0x6D,0x40,0x40,0x7D,0x44,0x52,0x55,0x4D,0x6D,0x40,0x40,0x40,0x40,0x40,0x40,0x40
 zendproc
 
-LINE_PADDING = 4
-MIDDLE_ROW = 16
-PATTERN_NUMBER_ADDRESS = VRAM + 4*40 + 19
-TEMPO_ADDRESS = VRAM + 4*40 + 16
-PATTERNLENGTH_ADDRESS = VRAM + 5*40 + 16
-MUTE_ADDRESS = VRAM + 7*40 + 7
-MIDDLE_ROW_ADDRESS = VRAM + (MIDDLE_ROW)*40
+zproc editor_cursor_table
+    i = 0
+    .rept 4
+        .byte lo(MIDDLE_ROW_ADDRESS) + 6 + 8*i + 0
+        .byte lo(MIDDLE_ROW_ADDRESS) + 6 + 8*i + 2
+        .byte lo(MIDDLE_ROW_ADDRESS) + 6 + 8*i + 4
+        .byte lo(MIDDLE_ROW_ADDRESS) + 6 + 8*i + 5
+        i = i + 1
+    .endr
+zendproc
 
 zproc draw_screen
     lda #lo(PATTERN_NUMBER_ADDRESS)
@@ -399,4 +508,304 @@ zproc note_decode_table
         .endif
         i = i + 1
     .endr
+zendproc
+
+; Sets the value under the cursor to A.
+; (0-9 means octave; 10+ means a letter, with A=10.)
+
+zproc set_value
+    tax
+    lda cursorx
+    lsr a
+    and #0xfe
+    tay
+
+    lda (rowptr), y     ; if not a note,
+    cmp #FIRST_COMMAND
+    blt is_a_note
+    lda cursorx
+    and #0x03
+    cmp #2
+    beq tone
+    cmp #3
+    beq volume
+
+    lda #C_1            ; convert this to a note
+    sta (rowptr), y
+
+is_a_note:
+    lda cursorx
+    cmp #12
+    beq drum
+    cmp #13
+    beq drum
+    and #0x03
+    cmp #2
+    beq tone
+    cmp #3
+    beq volume
+
+    ; Changing pitch or octave, depending on key pressed.
+
+    cpx #10
+    bge pitch
+
+    ; Changing octave.
+
+    stx w
+
+    lda (rowptr), y
+    tax
+    lda note_decode_table, x    ; decode to octave, pitch
+    lsr a
+    lsr a
+    lsr a
+    lsr a
+    cmp w                       ; test current octave against desired
+    zif lt
+        ; Raising octave.
+
+        tax
+        lda (rowptr), y
+        zrepeat
+            clc
+            adc #12*3
+            cmp #NUM_PITCHES
+            bge 1f
+            inx
+            cpx w
+        zuntil eq
+        sta (rowptr), y
+    1:
+        rts
+    zendif
+
+    ; Lowering octave.
+
+    tax
+    lda (rowptr), y
+    zrepeat
+        sec
+        sbc #12*3
+        bcc 1f
+        dex
+        cpx w
+    zuntil eq
+    sta (rowptr), y
+1:
+    rts
+
+tone:
+    iny
+    lda (rowptr), y
+    and #0x0f
+    sta w
+
+    txa
+    asl a
+    asl a
+    asl a
+    asl a
+    ora w
+    sta (rowptr), y
+    rts
+
+volume:
+    iny
+    lda (rowptr), y
+    and #0xf0
+    sta w
+
+    txa
+    ora w
+    sta (rowptr), y
+    rts
+
+drum:
+    txa
+    and #7
+    sta (rowptr), y
+    rts
+
+pitch:
+    txa
+    cmp #17 ; G + 1
+    zif lt
+        ; Changing pitch.
+
+        sec
+        sbc #10
+        zif ge
+            pha
+            lda (rowptr), y
+            tax
+            lda note_decode_table, x    ; decode to octave, pitch
+            lsr a
+            lsr a
+            lsr a
+            lsr a                       ; extract octave number
+            tax
+            lda octave_to_note_table, x ; get pitch of C for this octave
+            sta w
+            pla
+
+            tax
+            lda name_to_note_table, x   ; get relative pitch of this note
+            clc
+            adc w                       ; adjust for octave
+            sta (rowptr), y
+        zendif
+        rts
+    zendif
+zendproc
+
+; Adjusts the value under the cursor by A.
+; (Use 1 or -1.)
+
+zproc adjust_value
+    tax
+    lda cursorx
+    lsr a
+    and #0xfe
+    tay
+
+    lda (rowptr), y     ; if not a note,
+    cmp #FIRST_COMMAND
+    blt is_a_note2
+    lda cursorx
+    and #0x03
+    cmp #2
+    beq tone2
+    cmp #3
+    beq volume2
+
+    lda #C_1            ; convert this to a note
+    sta (rowptr), y
+
+is_a_note2:
+    lda cursorx
+    cmp #12
+    beq drum2
+    cmp #13
+    beq drum2
+    and #0x03
+    cmp #2
+    beq tone2
+    cmp #3
+    beq volume2
+    cmp #1
+    beq octave2
+
+    ; Changing pitch.
+
+    txa
+    clc
+    adc (rowptr), y
+    cmp #NUM_PITCHES
+    zif lt
+        sta (rowptr), y
+    zendif
+    rts
+
+octave2:
+    lda #36
+    cpx #1
+    zif ne
+        lda #<-36
+    zendif
+
+    clc
+    adc (rowptr), y
+    cmp #NUM_PITCHES
+    zif lt
+        sta (rowptr), y
+    zendif
+    rts
+
+tone2:
+    iny
+    lda (rowptr), y
+    and #0x0f
+    sta w
+
+    txa
+    asl a
+    asl a
+    asl a
+    asl a
+    clc
+    adc (rowptr), y
+    and #0xf0
+    ora w
+    sta (rowptr), y
+    rts
+
+volume2:
+    iny
+    lda (rowptr), y
+    and #0xf0
+    sta w
+
+    txa
+    clc
+    adc (rowptr), y
+    and #0x0f
+    ora w
+    sta (rowptr), y
+    rts
+
+drum2:
+    txa
+    and #7
+    sta (rowptr), y
+    rts
+zendproc
+
+zproc name_to_note_table
+   .byte  9*3 ; "A-"
+              ; "A#"
+   .byte 11*3 ; "B-"
+   .byte  0*3 ; "C-"
+              ; "C#"
+   .byte  2*3 ; "D-"
+              ; "D#"
+   .byte  4*3 ; "E-"
+   .byte  5*3 ; "F-"
+              ; "F#"
+   .byte  7*3 ; "G-"
+              ; "G#"
+zendproc
+
+zproc octave_to_note_table
+    .byte 0*12*3, 1*12*3, 2*12*3, 3*12*3, 4*12*3, 5*12*3
+zendproc
+
+zproc play_current_note
+    jsr reset_row_pointer
+
+    ldx #3                      ; voice count
+    stx w
+    zrepeat
+        lda w
+        asl a
+        tay                     ; offset to note
+
+        lda (rowptr), y             ; get note or command
+        iny
+        cmp #NUM_PITCHES
+        zif lt
+            ; Note.
+            tax
+            lda note_table, x       ; set period
+            ldx w
+            sta t1p, x              ; ...of each voice
+
+            lda (rowptr), y         ; set volume
+            and #0x0f
+            sta t1m, x              ; ...of each voice
+        zendif
+
+        dec w
+    zuntil mi
+    rts
 zendproc

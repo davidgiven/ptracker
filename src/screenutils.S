@@ -16,6 +16,9 @@ zproc init_screen
     lda #0x80
     sta curptr+1
     jsr clear_screen
+
+    lda #0xae       ; switch to lower case
+    sta VIA_PCR
 zendproc
 
 ; Various print-char routines.

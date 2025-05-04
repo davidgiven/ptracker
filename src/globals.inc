@@ -50,6 +50,8 @@ ROW_LENGTH = NOTE_LENGTH * NUM_VOICES
 .extern numpatterns
 .extern sequencelength
 
+.extern pcm_table
+
 #define G9  127
 #define Fs9 126
 #define F9  125

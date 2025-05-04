@@ -1,3 +1,5 @@
+#include "zif.inc"
+
 .macro pcm b1, brest:vararg
     b = \b1
     ; Reverse bits
@@ -34,9 +36,7 @@ bitcount = 0
 	.endif
 .endm
 
-.data
-.global drum_instrument_table
-drum_instrument_table:
+zproc drum_instrument_table
 	.byte bwoop_noise - pcm_table
 	.byte beep_noise - pcm_table
 	.byte kick_drum - pcm_table
@@ -47,8 +47,9 @@ drum_instrument_table:
 	.byte noise3_drum - pcm_table
 	.byte noise4_drum - pcm_table
 	.byte end_of_pcm_table - pcm_table
+zendproc
 
-pcm_table:
+zproc pcm_table
  ; Borrowed from
  ; https://github.com/protodomemusic/mmml/blob/master/player-desktop/mmml-engine.c
 bwoop_noise:
@@ -156,3 +157,4 @@ end_of_pcm_table:
 	.byte 0b01110111,0b00010101,0b00000010,0b00100010
 	.byte 0b11010101,0b01111010,0b11101111,0b10110110
 	.byte 0b00100100,0b10000100,0b10100100,0b11011010
+zendproc

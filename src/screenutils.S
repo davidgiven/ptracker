@@ -48,6 +48,8 @@ zendproc
 zproc print_space
     lda #' '
     jmp print_char
+zendproc
+
 zproc hex_table
     .ascii "0123456789"
     .byte 1, 2, 3, 4, 5, 6 ; PET screen codes for a-f

@@ -20,7 +20,3 @@ repeatend:      .fill 16
 TONE_DATA:      .fill TONE_SAMPLES*2*16
 PATTERN_DATA:
 zendproc
-
-zproc reset_file
-
-zendproc

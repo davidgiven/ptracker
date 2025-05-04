@@ -1,16 +1,12 @@
-#include "globals.inc"
 #include "pet.inc"
 #include "zif.inc"
+#include "globals.inc"
 
 ZEROPAGE
 
-rowptr:         .fill 2 ; pointer to current row
-rowno:          .fill 1 ; current row number
 disptr:         .fill 2 ; pointer to row being displayed
 disrow:         .fill 1 ; row number being displayed
-patternno:      .fill 1 ; current pattern number
 cursorx:        .fill 1 ; position of cursor (0-15)
-seqindex:       .fill 1 ; current index into the sequence
 looping_flag:   .fill 1
 
 LINE_PADDING = 4
@@ -20,21 +16,6 @@ TEMPO_ADDRESS = VRAM + 4*40 + 16
 PATTERNLENGTH_ADDRESS = VRAM + 5*40 + 16
 MUTE_ADDRESS = VRAM + 7*40 + 7
 MIDDLE_ROW_ADDRESS = VRAM + (MIDDLE_ROW)*40
-
-; Compute rowptr based on patternno and rowno.
-
-zproc reset_row_pointer
-    lda patternno
-    clc
-    adc #>PATTERN_DATA
-    sta rowptr+1
-    lda rowno
-    asl a           ; multiply by eight, = ROW_LENGTH
-    asl a
-    asl a
-    sta rowptr+0
-    rts
-zendproc
 
 zproc pattern_editor
     ldx #0
@@ -56,15 +37,23 @@ zproc do_patterneditor_keypress
     ldy #>MIDDLE_ROW_ADDRESS
     jsr move_cursor
 
-    jsr play_current_note
+    jsr play_current_row
     jsr cursor_on
     zrepeat
         jsr start_engine
         zrepeat
+            jsr engine_tick
+            zif cs
+                jsr draw_screen
+            zendif
             jsr is_key_pressed
         zuntil eq
         jsr keyboard_interrupt
         zrepeat
+            jsr engine_tick
+            zif cs
+                jsr draw_screen
+            zendif
             jsr is_key_pressed
         zuntil ne
         jsr keyboard_interrupt
@@ -107,6 +96,7 @@ key_table:
     key 0x12, key_tab
     key 0x2d, key_decrement
     key 0x2b, key_increment
+    key 0x20, key_space
     .byte 0
 zendproc
 
@@ -126,11 +116,9 @@ zendproc
 zproc key_esc
     sei
     lda #0
-    sta t1m
-    sta t2m
-    sta t3m
-    sta t4ptr
-    sta t4len
+    sta e1v
+    sta e2v
+    sta e3v
     cli
     rts
 zendproc
@@ -187,6 +175,13 @@ zendproc
 zproc key_decrement
     lda #<-1
     jmp adjust_value
+zendproc
+
+zproc key_space
+    lda playing_flag
+    eor #0xff
+    sta playing_flag
+    rts
 zendproc
 
 zproc setup_screen_for_pattern_editor
@@ -330,9 +325,8 @@ zproc draw_row
     zif lt
         lda disrow
         jsr print_h8
-        lda #' '
-        jsr print_char
-        jsr print_char
+        jsr print_space
+        jsr print_space
         jsr draw_note
         jsr print_space
         jsr draw_note
@@ -778,34 +772,4 @@ zendproc
 
 zproc octave_to_note_table
     .byte 0*12*3, 1*12*3, 2*12*3, 3*12*3, 4*12*3, 5*12*3
-zendproc
-
-zproc play_current_note
-    jsr reset_row_pointer
-
-    ldx #3                      ; voice count
-    stx w
-    zrepeat
-        lda w
-        asl a
-        tay                     ; offset to note
-
-        lda (rowptr), y             ; get note or command
-        iny
-        cmp #NUM_PITCHES
-        zif lt
-            ; Note.
-            tax
-            lda note_table, x       ; set period
-            ldx w
-            sta t1p, x              ; ...of each voice
-
-            lda (rowptr), y         ; set volume
-            and #0x0f
-            sta t1m, x              ; ...of each voice
-        zendif
-
-        dec w
-    zuntil mi
-    rts
 zendproc

@@ -51,6 +51,7 @@ zproc _start, .text.init
     zuntil mi
 
     jsr init_screen
+    jsr clear_all_data
 
     lda #0xbc
     sta PIA1_CRB            ; disable VSYNC interrupt

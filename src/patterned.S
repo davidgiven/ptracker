@@ -32,7 +32,49 @@ zproc pattern_editor
     jsr setup_screen_for_pattern_editor
     
     zloop
+        jsr draw_screen
+        jsr do_patterneditor_keypress
     zendloop
+zendproc
+        
+zproc do_patterneditor_keypress
+    zrepeat
+        jsr GETIN
+    zuntil ne
+
+    pha
+    ldx #<VRAM
+    stx scrptr+0
+    ldx #>VRAM
+    stx scrptr+1
+    jsr print_h8
+    pla
+
+    key_lookup key_table
+    rts
+
+key_table:
+    key 0x11, key_down
+    key 0x91, key_up
+    .byte 0
+zendproc
+
+zproc key_up
+    lda rowno
+    sec
+    sbc #1
+    and #NUM_STEPS-1
+    sta rowno
+    rts
+zendproc
+
+zproc key_down
+    lda rowno
+    clc
+    adc #1
+    and #NUM_STEPS-1
+    sta rowno
+    rts
 zendproc
 
 zproc setup_screen_for_pattern_editor
@@ -44,8 +86,6 @@ zproc setup_screen_for_pattern_editor
         sta VRAM+1*40*4-1, x
         dex
     zuntil eq
-
-    jsr draw_screen
     rts
 
 data:
@@ -352,8 +392,12 @@ zendproc
 zproc note_decode_table
     i = 0
     .rept NUM_PITCHES
-        semis = i - 24
-        .byte ((semis/12)<<4) | (semis % 12)
+        .if (i % 3)
+            .byte 0xff
+        .else
+            semis = i / 3
+            .byte ((semis/12)<<4) | (semis % 12)
+        .endif
         i = i + 1
     .endr
 zendproc

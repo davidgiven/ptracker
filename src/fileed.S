@@ -98,5 +98,52 @@ zproc clear_all_data
         cmp #>VRAM
     zuntil eq
 
+    lda #8
+    sta 0xd1            ; length of filename
+    lda #<name
+    sta 0xda+0          ; filename
+    lda #>name
+    sta 0xda+1          ; filename
+    jsr load_file
+
+    rts
+
+name:
+    .ascii "0:DEBRIS"
+name_end:
+zendproc
+    
+zproc load_file
+    lda #<MUSIC_DATA
+    sta w+0
+    lda #>MUSIC_DATA
+    sta w+1
+
+    lda #0x60
+    sta 0xd3            ; secondary address
+    lda #8
+    sta 0xd4            ; device number
+    
+    jsr 0xf449
+    jsr 0xf4a5
+    jsr 0xf0d2
+    lda 0xd3
+    jsr 0xf193
+    
+    zrepeat
+        lda #0
+        sta 0x96
+
+        jsr 0xf1c0      ; read byte
+        ldy #0
+        sta (w), y
+
+        inc16 w
+
+        lda 0x96
+    zuntil ne
+
+    jsr 0xf1ae          ; UNTALK
+    jsr 0xf72f
     rts
 zendproc

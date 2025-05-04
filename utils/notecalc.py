@@ -8,13 +8,13 @@ OCTAVES = 4
 
 for samplerate in range(4000, 15000):
     cerror = 0
-    for n in range(24, 24+(OCTAVES*12)):
-        freq = (2 ** ((n-69)/12))*440
+    for n in range(24, 24 + (OCTAVES * 12)):
+        freq = (2 ** ((n - 69) / 12)) * 440
         period = int(round(samplerate / freq))
-        if (period > 255):
+        if period > 255:
             period = 1
-        realfreq = samplerate/period
-        realmidi = 69 + 12*math.log2(realfreq / 440)
+        realfreq = samplerate / period
+        realmidi = 69 + 12 * math.log2(realfreq / 440)
 
-        cerror += abs((n - realmidi)*100)
+        cerror += abs((n - realmidi) * 100)
     print(cerror, samplerate)

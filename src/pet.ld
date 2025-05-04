@@ -16,7 +16,9 @@ SECTIONS {
 	} >ram
 	.data : { *(.data .data.* .rodata .rodata.*) } >ram
 	.noinit (NOLOAD) : {
+		*(.bss .bss.*)
 		*(.noinit .noinit.*)
+		*(COMMON)
 		. = ALIGN(., 0x100);
 		*(.filedata)
 	} >ram

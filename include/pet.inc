@@ -21,6 +21,8 @@ CRTC_DATA = 0xe881
 IRQ_VECTOR = 0x0090
 BRK_VECTOR = 0x0092
 
+GETIN       = 0xffe4
+
 VRAM = 0x8000
 
 .macro blt label

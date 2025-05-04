@@ -4,6 +4,8 @@
 
 ZEROPAGE
 
+running_flag: .fill 1
+
 t1:         .fill 1
 t2:         .fill 1
 t3:         .fill 1
@@ -27,62 +29,92 @@ BITRATE = 3
 .comm old_interrupt_vector, 2
 
 zproc start_engine
-    sei
+    bit running_flag
+    zif pl
+        sei
 
-    lda #0xbc
-    sta PIA1_CRB            ; disable VSYNC interrupt
+        lda #0xbc
+        sta PIA1_CRB            ; disable VSYNC interrupt
 
-    lda #0x54               ; T1 continuous, T2 one-shot, SR under T2 control
-    sta VIA_ACR
+        lda #0x54               ; T1 continuous, T2 one-shot, SR under T2 control
+        sta VIA_ACR
 
-    lda #0xae               ; CB2 outputs SR pulses; lower case mode
-    sta VIA_PCR
+        lda #0xae               ; CB2 outputs SR pulses; lower case mode
+        sta VIA_PCR
 
-    lda #0x84
-    sta VIA_IER             ; generate software interrupts on SR empty
+        lda #0x84
+        sta VIA_IER             ; generate software interrupts on SR empty
 
-    lda IRQ_VECTOR+0
-    sta old_interrupt_vector+0
-    lda IRQ_VECTOR+1
-    sta old_interrupt_vector+1
+        lda IRQ_VECTOR+0
+        sta old_interrupt_vector+0
+        lda IRQ_VECTOR+1
+        sta old_interrupt_vector+1
 
-    lda #<interrupt_handler ; set interrupt handler vector
-    sta IRQ_VECTOR+0
-    lda #>interrupt_handler
-    sta IRQ_VECTOR+1
+        lda #<interrupt_handler ; set interrupt handler vector
+        sta IRQ_VECTOR+0
+        lda #>interrupt_handler
+        sta IRQ_VECTOR+1
 
-    lda #lo(SAMPLE_PERIOD/2) ; one bit is clocked out every _two_ T2 ticks
-    sta VIA_T2C_L
-    lda #hi(SAMPLE_PERIOD/2)
-    sta VIA_T2C_H
+        lda #lo(SAMPLE_PERIOD/2) ; one bit is clocked out every _two_ T2 ticks
+        sta VIA_T2C_L
+        lda #hi(SAMPLE_PERIOD/2)
+        sta VIA_T2C_H
 
-    lda #0                  ; T1 makes an interrupt every 65.536ms
-    sta VIA_T1C_L
-    sta VIA_T1C_H
+        lda #0                  ; T1 makes an interrupt every 65.536ms
+        sta VIA_T1C_L
+        sta VIA_T1C_H
 
-    lda #0
-    sta VIA_SR
+        lda #0
+        sta VIA_SR
 
-    cli
+        dec running_flag
+        lda #'Y'
+        sta VRAM+39
+        cli
+    zendif
     rts
 zendproc
 
 zproc stop_engine
-    sei
+    bit running_flag
+    zif mi
+        sei
 
-    lda #0xbd               ; enable VSYNC interrupt
-    sta PIA1_CRB
+        lda #0xbd               ; enable VSYNC interrupt
+        sta PIA1_CRB
 
-    lda #0x04
-    sta VIA_IER             ; disable SR software interrupts
+        lda #0x04
+        sta VIA_IER             ; disable SR software interrupts
 
-    lda old_interrupt_vector+0 ; restore old interrupt handler
-    sta IRQ_VECTOR+0
-    lda old_interrupt_vector+1
-    sta IRQ_VECTOR+1
+        lda old_interrupt_vector+0 ; restore old interrupt handler
+        sta IRQ_VECTOR+0
+        lda old_interrupt_vector+1
+        sta IRQ_VECTOR+1
 
-    cli
+        ; Force an immediate VSYNC interrupt.
+
+        lda #>1f
+        pha
+        lda #<1f
+        pha
+        php                     ; P
+        php                     ; A
+        php                     ; Y
+        php                     ; X
+        jmp (IRQ_VECTOR)
+1:
+
+        inc running_flag
+        lda #'N'
+        sta VRAM+39
+
+        cli
+    zendif
     rts
+
+force_irq:
+    php
+    jmp (IRQ_VECTOR)
 zendproc
 
 zproc interrupt_handler

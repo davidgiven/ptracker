@@ -19,6 +19,7 @@ zproc init_screen
 
     lda #0xae       ; switch to lower case
     sta VIA_PCR
+    rts
 zendproc
 
 ; Various print-char routines.
@@ -127,5 +128,25 @@ zproc cursor_off
         jsr toggle_cursor
         inc cursor_flag
     zendif
+    rts
+zendproc
+
+; Polls the keyboard but does not consume the key (can be run with the vsync
+; interrupt disabled).
+
+zproc is_key_pressed
+    lda PIA1_PA
+    and #0xf0
+    sta PIA1_PA
+
+    lda #0xff
+    ldx #10
+    zrepeat
+        and PIA1_PB
+        inc PIA1_PA
+        dex
+    zuntil eq
+
+    cmp #0xff
     rts
 zendproc

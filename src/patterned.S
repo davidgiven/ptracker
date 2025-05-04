@@ -32,6 +32,7 @@ zproc pattern_editor
     jsr setup_screen_for_pattern_editor
     
     zloop
+        jsr reset_row_pointer
         jsr draw_screen
         jsr do_patterneditor_keypress
     zendloop
@@ -39,6 +40,11 @@ zendproc
         
 zproc do_patterneditor_keypress
     zrepeat
+        jsr start_engine
+        zrepeat
+            jsr is_key_pressed
+        zuntil ne
+        jsr stop_engine
         jsr GETIN
     zuntil ne
 
@@ -253,8 +259,7 @@ zproc draw_note
     zif lt
         jsr draw_raw_note
     next:
-        lda #' '
-        jsr print_char
+        jsr print_space
 
         ; Tone/volume/control
 
@@ -263,8 +268,7 @@ zproc draw_note
         jsr print_h8
 
     done:
-        lda #' '
-        jsr print_char
+        jsr print_space
         inc disptr+0
         inc disptr+0
         rts
@@ -278,30 +282,25 @@ is_a_command:
     zendif
 
     pha
-    lda #' '
-    jsr print_char
-    jsr print_char
+    jsr print_space
+    jsr print_space
     pla
     sec
     sbc #FIRST_COMMAND - 'A'
     jsr print_char
     jmp next
 
-    rts
-
 banner:
     pha
-    lda #' '
-    jsr print_char
+    jsr print_space
     pla
     ldx #3
     zrepeat
         jsr print_char
         dex
     zuntil mi
-    lda #' '
-    jsr print_char
-    jmp print_char
+    jsr print_space
+    jmp done
 zendproc
 
 zproc draw_drum

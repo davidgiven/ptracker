@@ -83,6 +83,7 @@ zproc _start, .text.init
     sta VIA_SR
 
     cli
+    jsr reset_row_pointer
     jmp pattern_editor
 zendproc
 

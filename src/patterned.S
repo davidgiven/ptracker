@@ -4,12 +4,27 @@
 
 ZEROPAGE
 
-patternno:      .fill 1
+rowptr:         .fill 2 ; pointer to current row
+rowno:          .fill 1 ; current row number
+disptr:         .fill 2 ; pointer to row being displayed
+disrow:         .fill 1 ; row number being displayed
+patternno:      .fill 1 ; current pattern number
 looping_flag:   .fill 1
-disptr:         .fill 2
-rowptr:         .fill 2
-disrow:         .fill 1
-rowno:          .fill 1
+
+; Compute rowptr based on patternno and rowno.
+
+zproc reset_row_pointer
+    lda patternno
+    clc
+    adc #>PATTERN_DATA
+    sta rowptr+1
+    lda rowno
+    asl a           ; multiply by eight, = ROW_LENGTH
+    asl a
+    asl a
+    sta rowptr+0
+    rts
+zendproc
 
 zproc pattern_editor
     ldx #0
@@ -44,7 +59,7 @@ BYTE 0x20,0x20,0x20,0x20,0x20,0x20,0x70,0x40,0x40,0x40,0x6E,0x20,0x20,0x70,0x40,
 BYTE 0x40,0x40,0x40,0x40,0x40,0x40,0x7D,0x43,0x48,0x31,0x6D,0x40,0x40,0x7D,0x43,0x48,0x32,0x6D,0x40,0x40,0x7D,0x43,0x48,0x33,0x6D,0x40,0x40,0x7D,0x44,0x52,0x55,0x4D,0x6D,0x40,0x40,0x40,0x40,0x40,0x40,0x40
 zendproc
 
-LINE_PADDING = 0
+LINE_PADDING = 4
 MIDDLE_ROW = 16
 PATTERN_NUMBER_ADDRESS = VRAM + 4*40 + 19
 TEMPO_ADDRESS = VRAM + 4*40 + 16
@@ -78,11 +93,18 @@ zproc draw_screen
 
     ; TODO: mute flags
 
+    ; Draw the arrows.
+
+    lda #62 ; >
+    sta MIDDLE_ROW_ADDRESS
+    lda #60 ; <
+    sta MIDDLE_ROW_ADDRESS + 39
+
     ; Draw lines below the middle.
 
-    lda #<MIDDLE_ROW_ADDRESS
+    lda #<(MIDDLE_ROW_ADDRESS+2)
     sta scrptr+0
-    lda #>MIDDLE_ROW_ADDRESS
+    lda #>(MIDDLE_ROW_ADDRESS+2)
     sta scrptr+1
     lda rowptr+0
     sta disptr+0
@@ -107,9 +129,9 @@ zproc draw_screen
 
     ; Draw lines above the middle.
 
-    lda #<(MIDDLE_ROW_ADDRESS-40)
+    lda #<(MIDDLE_ROW_ADDRESS-40+2)
     sta scrptr+0
-    lda #>(MIDDLE_ROW_ADDRESS-40)
+    lda #>(MIDDLE_ROW_ADDRESS-40+2)
     sta scrptr+1
     sec
     lda rowptr+0
@@ -119,9 +141,9 @@ zproc draw_screen
     sbc #0
     sta disptr+1
 
-    lda rowno
-    sta disrow
-    dec disrow
+    ldx rowno
+    dex
+    stx disrow
 
     lda #8
     zrepeat
@@ -144,8 +166,6 @@ zproc draw_screen
         sec
         sbc #1
     zuntil eq
-
-
     rts
 zendproc
 
@@ -153,11 +173,6 @@ zproc draw_row
     lda disrow
     cmp #NUM_STEPS
     zif lt
-        lda #' '
-        jsr print_char
-
-        lda #' '
-        jsr print_char
         lda disrow
         jsr print_h8
         lda #' '
@@ -171,13 +186,13 @@ zproc draw_row
         jsr print_space
         jsr draw_drum
         jsr print_space
-        lda #' '
-        jsr print_char
         rts
     zendif
 
-    ldy #39
-    lda #32
+    ; Not a displayable row --- blank it.
+
+    ldy #(39-LINE_PADDING)
+    lda #' '
     zrepeat
         sta (scrptr), y
         dey
@@ -216,6 +231,12 @@ zproc draw_note
     zendif
 
 is_a_command:
+    cmp #FIRST_COMMAND + ('B' - 'A')
+    zif eq
+        lda #'.'
+        jmp banner
+    zendif
+
     pha
     lda #' '
     jsr print_char
@@ -227,6 +248,20 @@ is_a_command:
     jmp next
 
     rts
+
+banner:
+    pha
+    lda #' '
+    jsr print_char
+    pla
+    ldx #3
+    zrepeat
+        jsr print_char
+        dex
+    zuntil mi
+    lda #' '
+    jsr print_char
+    jmp print_char
 zendproc
 
 zproc draw_drum
@@ -247,6 +282,7 @@ zproc draw_raw_note
         txa
         jmp print_h8
     zendif
+
     pha
     and #0x0f
     asl a

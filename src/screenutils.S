@@ -51,17 +51,23 @@ zendproc
 
 ; Advances/retards the screen pointer by A bytes.
 
-zproc retard_scrptr
-    clc
-    eor #0xff
-    adc #1
-.global advance_scrptr
-advance_scrptr:
+zproc advance_scrptr
     clc
     adc scrptr+0
-    sta scrptr+1
+    sta scrptr+0
     zif cs
         inc scrptr+1
+    zendif
+    rts
+zendproc
+
+zproc retard_scrptr
+    sec
+    eor #0xff
+    adc scrptr+0
+    sta scrptr+0
+    zif cc
+        dec scrptr+1
     zendif
     rts
 zendproc

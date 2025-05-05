@@ -8,14 +8,14 @@ import os
 # up with a sample rate which is both fairly accurate and which also is low
 # enough not to use up all our precious CPU bandwidth.
 
-OCTAVES = 4
-ERRORLIMIT = 8
+OCTAVES = 5
+ERRORLIMIT = 10
 
 Note = namedtuple('Note', ["note", "error"])
 NoteSet = namedtuple('NoteSet', ["transpose", "samplerate", "notes", "error"])
 
 allnotes = set()
-for transpose in range(0*12, 2 * 12):
+for transpose in range(1*12, 1 * 12+1):
     for samplerate in range(8000, 20000):
         notes = []
         for n in range(24, 24 + (OCTAVES * 12)):
@@ -25,6 +25,8 @@ for transpose in range(0*12, 2 * 12):
             realfreq = samplerate / period
             realmidi = 69 + 12 * math.log2(realfreq / 440)
             if period > 255:
+                continue
+            if period < 16:
                 continue
 
             notes += [Note(note=n, error=abs((n - realmidi) * 100))]
@@ -48,4 +50,4 @@ for transpose in range(0*12, 2 * 12):
 
 s = sorted(allnotes, key=lambda x: (x.notes, -x.samplerate, -x.error))
 for i in s:
-    print(i.notes, i.samplerate, i.transpose, i.error)
+    print(i.notes, i.samplerate, "%d-%d" % (i.transpose, i.transpose+i.notes), i.error)

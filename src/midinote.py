@@ -10,7 +10,7 @@ zproc note_table
 # semitone with 0 being MIDI note 24) and the intervals that the timer is
 # programmed with.
 
-TRANSPOSE = 0
+TRANSPOSE = 12
 
 def period(n):
     freq = (2 ** ((n-69)/12))*440

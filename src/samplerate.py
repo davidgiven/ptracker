@@ -1,4 +1,4 @@
 # See utils/notecalc.py on where this extremely magic number came from.
 
-SAMPLE_FREQ = 8101
+SAMPLE_FREQ = 15814
 OCTAVES = 6

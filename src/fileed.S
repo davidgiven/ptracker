@@ -114,6 +114,25 @@ name_end:
 zendproc
     
 zproc load_file
+    lda #147            ; clear screen
+    jsr CHROUT
+
+    ldy #0
+    zrepeat
+        lda loading_msg, y
+        jsr CHROUT
+        iny
+        cpy #(loading_msg_end - loading_msg)
+    zuntil eq
+
+    ldy #0
+    zrepeat
+        lda (0xda), y
+        jsr CHROUT
+        iny
+        cpy 0xd1
+    zuntil eq
+
     lda #<MUSIC_DATA
     sta w+0
     lda #>MUSIC_DATA
@@ -138,12 +157,22 @@ zproc load_file
         ldy #0
         sta (w), y
 
-        inc16 w
+        inc w+0
+        zif eq
+            inc w+1
+            lda #'.'
+            jsr CHROUT
+        zendif
 
         lda 0x96
     zuntil ne
 
     jsr 0xf1ae          ; UNTALK
     jsr 0xf72f
+    jmp .
     rts
+
+loading_msg:
+    .ascii "LOADING "
+loading_msg_end:
 zendproc

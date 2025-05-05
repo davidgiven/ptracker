@@ -2,8 +2,9 @@
 #include "pet.inc"
 #include "zif.inc"
 
-.global MUSIC_DATA, PATTERN_DATA
+.global MUSIC_DATA, PATTERN_DATA, TONE_DATA
 .global sequence, tempo, patternlength, numpatterns, sequencelength
+.global samplespeed, repeatstart, repeatend, pitchscale
 
 zproc filedata, .filedata
 MUSIC_DATA:

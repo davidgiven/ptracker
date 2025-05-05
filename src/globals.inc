@@ -68,7 +68,7 @@ ROW_LENGTH = NOTE_LENGTH * NUM_VOICES
 
 .extern midinote_table
 
-.zeropage w
+.zeropage w, q
 .zeropage scrptr
 
 .extern sequence

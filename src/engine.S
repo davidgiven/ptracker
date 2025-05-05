@@ -30,21 +30,30 @@ nextsample: .fill 1
 e1b:        .fill 1 ; base pitch
 e2b:        .fill 1
 e3b:        .fill 1
+e1d:        .fill 1 ; pitch delta
+e2d:        .fill 1
+e3d:        .fill 1
 e1v:        .fill 1 ; base volume
 e2v:        .fill 1
 e3v:        .fill 1
-e1c:        .fill 1 ; counter
-e2c:        .fill 1
-e3c:        .fill 1
+e1p:        .fill 1 ; sample pointer
+e2p:        .fill 1
+e3p:        .fill 1
+e1i:        .fill 1 ; ticks until next pointer increment
+e2i:        .fill 1
+e3i:        .fill 1
 e1t:        .fill 1 ; tone
 e2t:        .fill 1
 e3t:        .fill 1
+e4i:        .fill 1 ; drum instrument (reset after playing)
 
 .global playing_flag, looping_flag
 .global tempoticks, rowptr, rowno, patternno, seqindex
 
 playing_flag: .fill 1 ; are we playing the current pattern?
 looping_flag: .fill 1 ; are we looping the current pattern?
+nextrow_flag: .fill 1 ; a N command was seen in the current row
+key_flag:     .fill 1 ; a key was pressed
 tempoticks: .fill 1 ; number of ticks left until next row
 rowptr:     .fill 2 ; pointer to current row
 rowno:      .fill 1 ; current row number
@@ -145,27 +154,118 @@ zproc engine_tick
     ; Envelope processing.
 
     lda #0x40
-    bit VIA_IFR             ; about 15 times per second
+    bit VIA_IFR
     zif ne
         sta VIA_IFR
         inc VRAM+36
         
         dec tempoticks
 
+        lda #0
+        sta key_flag
+        jsr is_key_pressed
+        zif eq
+            dec key_flag
+        zendif
+
         ; Process the envelope.
 
         ldx #2                ; voice count - 1
         zrepeat
-            ldy e1b, x        ; get base note
-            lda note_table, y ; convert to period
-            sta t1p, x        ; update playing period
+            ; Advance the sample pointer, if appropriate.
 
-            lda e1v, x        ; get base volume
+            ldy e1t, x        ; get tone number into Y
+            dec e1i, x        ; sample interval timer
+            zif eq
+                ldy e1t, x    ; get tone number into Y
+                lda samplespeed, y
+                sta e1i, x    ; reset interval timer
+
+                inc e1p, x    ; increment sample pointer
+                lda e1p, x
+                cmp repeatend, y
+                zif eq
+                    lda repeatstart, y
+                    sta e1p, x
+                zendif
+            zendif
+
+            tya
+            jsr get_tone_data_into_w
+
+            ; Compute pitch.
+
+            lda pitchscale, y
+            sta q
+            ldy e1p, x        ; sample pointer
+            clc
+            lda #0
+            zrepeat           ; multiply by repeated add
+                adc (w), y    ; get pitch sample
+                dec q
+            zuntil eq
+
+            ; Modulus compute pitch.
+
+            clc
+            adc e1d, x        ; pitchbend delta
+            clc
+            zif mi
+                adc #NUM_PITCHES ; wrap round the bottom
+                clc
+            zendif
+            adc e1b, x        ; add base pitch
+            cmp #NUM_PITCHES
+            zif ge            ; wrap around the top
+                sec
+                sbc #NUM_PITCHES
+            zendif
+
+            ; ...and actually update the tone generator.
+
+            tay
+            lda note_table, y   ; convert to period
+            sta t1p, x          ; update tone generator
+
+            ; Compute volume.
+
+            lda e1p, x
+            clc
+            adc #64
+            tay
+            clc
+            lda e1v, x          ; get base volume
+            adc (w), y          ; add delta
+            zif mi
+                lda #0
+            zendif
+            cmp #0x10
+            zif ge
+                lda #0xf
+            zendif
             sta t1m, x        ; update playing volume
 
             dex
         zuntil mi
     zendif
+    rts
+zendproc
+
+; Given a tone number in A, sets w to the address of its sample data.
+; Preserves X/Y.
+
+zproc get_tone_data_into_w
+    pha
+    lsr a
+    clc
+    adc #>TONE_DATA
+    sta w+1             ; high byte
+
+    pla
+    lsr a
+    lda #0
+    ror a
+    sta w+0             ; low byte
     rts
 zendproc
 
@@ -208,13 +308,13 @@ zproc process_row
 
         lda tempo
         sta tempoticks
-        inc VRAM+35
 
         lda rowno
         clc
         adc #1
         and #NUM_STEPS-1
         zif eq
+        nextrow:
             ldx seqindex
             inx
             lda sequence, x
@@ -229,11 +329,12 @@ zproc process_row
         zendif
         sta rowno
         
+        lda #0
+        sta nextrow_flag
         jsr play_current_row
-        sec
+        bit nextrow_flag
+        bne nextrow
     zendif
-    clc
-
     rts
 zendproc
 
@@ -249,28 +350,84 @@ zproc play_current_row
         lda (rowptr), y         ; base note
         iny
         cmp #NUM_PITCHES
-        zif lt
-            sta e1b, x
-
-            lda (rowptr), y     ; base volume
-            pha
-            and #0x0f
-            sta e1v, x
-            and #0xf0
-            lsr a
-            lsr a
-            lsr a
-            lsr a
-            sta e1t, x          ; tone
-
-            pla
-            lda #0
-            sta e1c, x          ; counter
-        zendif
-
+        blt is_note
+        cmp #FIRST_COMMAND + ('O' - 'A')
+        beq off_command
+        cmp #FIRST_COMMAND + ('P' - 'A')
+        beq pitchbend_command
+        cmp #FIRST_COMMAND + ('V' - 'A')
+        beq volume_command
+        cmp #FIRST_COMMAND + ('N' - 'A')
+        beq next_pattern_command
+        cmp #FIRST_COMMAND + ('X' - 'A')
+        beq stop_playing_command
+    done:
         dex
     zuntil mi
+    
+    ; If there's a drum, bypass the envelope generator and just play it.
+
+    ldy #6
+    lda (rowptr), y             ; drum
+    cmp #NUM_PITCHES
+    zif lt
+        tax
+        lda drum_instrument_table+0, x
+        sta t4ptr
+        lda drum_instrument_table+1, x
+        sta t4len
+    zendif
     rts
+
+is_note:
+    sta e1b, x
+
+    lda (rowptr), y     ; base volume
+    pha
+    and #0x0f
+    sta e1v, x
+
+    pla
+    and #0xf0
+    lsr a
+    lsr a
+    lsr a
+    lsr a
+    sta e1t, x          ; tone
+    tay
+    lda samplespeed, y
+    sta e1i, x          ; initialise sample interval
+
+    lda #0
+    sta e1p, x          ; sample pointer
+    sta e1d, x          ; pitch delta
+
+    jmp done
+
+off_command:
+    lda #0
+    sta e1v, x          ; volume
+    jmp done
+
+next_pattern_command:
+    dec nextrow_flag
+    jmp done
+
+stop_playing_command:
+    lda #0
+    sta playing_flag
+    jmp done
+
+pitchbend_command:
+    lda (rowptr), y
+    sta e1d, x
+    jmp done
+
+volume_command:
+    lda (rowptr), y
+    and #0x0f
+    sta e1v, x
+    jmp done
 zendproc
 
 zproc play_entire_song
@@ -278,13 +435,13 @@ zproc play_entire_song
     zrepeat
         jsr engine_tick
         jsr process_row
-        jsr is_key_pressed
+        lda key_flag
     zuntil eq
     jsr keyboard_interrupt
     zrepeat
         jsr engine_tick
         jsr process_row
-        jsr is_key_pressed
+        lda key_flag
     zuntil ne
     jsr stop_engine
     jmp keyboard_interrupt
@@ -294,12 +451,12 @@ zproc just_play_current_row
     jsr start_engine
     zrepeat
         jsr engine_tick
-        jsr is_key_pressed
+        lda key_flag
     zuntil eq
     jsr keyboard_interrupt
     zrepeat
         jsr engine_tick
-        jsr is_key_pressed
+        lda key_flag
     zuntil ne
     jsr stop_engine
     jmp keyboard_interrupt

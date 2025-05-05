@@ -169,7 +169,6 @@ zproc load_file
 
     jsr 0xf1ae          ; UNTALK
     jsr 0xf72f
-    jmp .
     rts
 
 loading_msg:

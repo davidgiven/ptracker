@@ -79,18 +79,6 @@ ROW_LENGTH = NOTE_LENGTH * NUM_VOICES
 
 .extern pcm_table
 
-.zeropage t1
-.zeropage t2
-.zeropage t3
-.zeropage t1m
-.zeropage t2m
-.zeropage t3m
-.zeropage t1p
-.zeropage t2p
-.zeropage t3p
-.zeropage t4ptr
-.zeropage t4len
-
 .zeropage e1b, e2b, e3b
 .zeropage e1v, e2v, e3v
 .zeropage e1c, e2c, e3c

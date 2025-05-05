@@ -4,8 +4,6 @@
 
 ZEROPAGE
 
-running_flag: .fill 1
-
 .global t1, t2, t3
 .global t1m, t2m, t3m
 .global t1p, t2p, t3p
@@ -62,93 +60,57 @@ BITRATE = 3
 .comm old_interrupt_vector, 2
 
 zproc start_engine
-    bit running_flag
-    zif pl
-        sei
+    sei
 
-        lda #0xbc
-        sta PIA1_CRB            ; disable VSYNC interrupt
+    lda #0x54               ; T1 continuous, T2 one-shot, SR under T2 control
+    sta VIA_ACR
 
-        lda #0x54               ; T1 continuous, T2 one-shot, SR under T2 control
-        sta VIA_ACR
+    lda #0xae               ; CB2 outputs SR pulses; lower case mode
+    sta VIA_PCR
 
-        lda #0xae               ; CB2 outputs SR pulses; lower case mode
-        sta VIA_PCR
+    lda #lo(SAMPLE_PERIOD/2) ; one bit is clocked out every _two_ T2 ticks
+    sta VIA_T2C_L
+    lda #hi(SAMPLE_PERIOD/2)
+    sta VIA_T2C_H
 
-        lda #0x84
-        sta VIA_IER             ; generate software interrupts on SR empty
+    lda #<5000              ; T1 ticks every 5ms
+    sta VIA_T1C_L
+    lda #>5000
+    sta VIA_T1C_H
 
-        lda IRQ_VECTOR+0
-        sta old_interrupt_vector+0
-        lda IRQ_VECTOR+1
-        sta old_interrupt_vector+1
+    lda #0
+    sta VIA_SR
 
-        lda #<interrupt_handler ; set interrupt handler vector
-        sta IRQ_VECTOR+0
-        lda #>interrupt_handler
-        sta IRQ_VECTOR+1
+    lda tempo
+    sta tempoticks
 
-        lda #lo(SAMPLE_PERIOD/2) ; one bit is clocked out every _two_ T2 ticks
-        sta VIA_T2C_L
-        lda #hi(SAMPLE_PERIOD/2)
-        sta VIA_T2C_H
+    lda #'Y'
+    sta VRAM+39
 
-        lda #<5000              ; T1 ticks every 5ms
-        sta VIA_T1C_L
-        lda #>5000
-        sta VIA_T1C_H
-
-        lda #0
-        sta VIA_SR
-
-        lda tempo
-        sta tempoticks
-
-        dec running_flag
-        lda #'Y'
-        sta VRAM+39
-        cli
-    zendif
     rts
 zendproc
 
 zproc stop_engine
-    bit running_flag
-    zif mi
-        sei
+    lda #'N'
+    sta VRAM+39
 
-        lda #0xbd               ; enable VSYNC interrupt
-        sta PIA1_CRB
-
-        lda #0x04
-        sta VIA_IER             ; disable SR software interrupts
-
-        lda old_interrupt_vector+0 ; restore old interrupt handler
-        sta IRQ_VECTOR+0
-        lda old_interrupt_vector+1
-        sta IRQ_VECTOR+1
-
-        inc running_flag
-        lda #'N'
-        sta VRAM+39
-
-        cli
-    zendif
+    cli
     rts
-
-force_irq:
-    php
-    jmp (IRQ_VECTOR)
 zendproc
 
-zproc interrupt_handler
-    lda #0x04           ; clear IFR flag (to allow seamless playback)
+zproc engine_tick
+    ; Wait for the next SR interrupt.
+
+    lda #0x04
+    zrepeat
+        bit VIA_IFR
+    zuntil ne
     sta VIA_IFR
 
     lda nextsample
     sta VIA_SR          ; play the previously calculated sample
 
-    ; Calculate the next sample, now timing isn't as tight.
+    ; Note processing.
 
     .macro synth var, varp, varm
         ldx \var            ; 3
@@ -180,17 +142,37 @@ zproc interrupt_handler
         inc t4ptr
     zendif
 
-    pla
-    tay
-    pla
-    tax
-    pla
-    rti
+    ; Envelope processing.
+
+    lda #0x40
+    bit VIA_IFR             ; about 15 times per second
+    zif ne
+        sta VIA_IFR
+        inc VRAM+36
+        
+        dec tempoticks
+
+        ; Process the envelope.
+
+        ldx #2                ; voice count - 1
+        zrepeat
+            ldy e1b, x        ; get base note
+            lda note_table, y ; convert to period
+            sta t1p, x        ; update playing period
+
+            lda e1v, x        ; get base volume
+            sta t1m, x        ; update playing volume
+
+            dex
+        zuntil mi
+    zendif
+    rts
 zendproc
+
+; Force an immediate hardware interrupt to let the kernal do housekeeping. Run
+; with interrupts off.
         
 zproc keyboard_interrupt
-    ; Force an immediate VSYNC interrupt.
-
     lda #>1f
     pha
     lda #<1f
@@ -199,8 +181,7 @@ zproc keyboard_interrupt
     php                     ; A
     php                     ; Y
     php                     ; X
-    sei
-    jmp (old_interrupt_vector)
+    jmp (IRQ_VECTOR)
 1:
     rts
 zendproc
@@ -220,65 +201,36 @@ zproc reset_row_pointer
     rts
 zendproc
 
-zproc engine_tick
-    inc VRAM+37
+zproc process_row
+    lda tempoticks
+    zif eq
+        inc VRAM+37
 
-    lda #0x40
-    bit VIA_IFR             ; about 15 times per second
-    zif ne
-        sta VIA_IFR
-        inc VRAM+36
+        lda tempo
+        sta tempoticks
+        inc VRAM+35
 
-        ; Process the envelope.
-
-        ldx #2                ; voice count - 1
-        zrepeat
-            sei
-            ldy e1b, x        ; get base note
-            lda note_table, y ; convert to period
-            sta t1p, x        ; update playing period
-
-            lda e1v, x        ; get base volume
-            sta t1m, x        ; update playing volume
-            cli
-
-            dex
-        zuntil mi
-
-        ; If playing, process the pattern.
-
-        bit playing_flag
-        zif mi
-            dec tempoticks
+        lda rowno
+        clc
+        adc #1
+        and #NUM_STEPS-1
+        zif eq
+            ldx seqindex
+            inx
+            lda sequence, x
+            cmp #0xff   ; marks the end of the sequence
             zif eq
-                lda tempo
-                sta tempoticks
-                inc VRAM+35
-
-                lda rowno
-                clc
-                adc #1
-                and #NUM_STEPS-1
-                zif eq
-                    ldx seqindex
-                    inx
-                    lda sequence, x
-                    cmp #0xff   ; marks the end of the sequence
-                    zif eq
-                        ldx #0
-                        lda sequence+0
-                    zendif
-                    stx seqindex
-                    sta patternno
-                    lda #0
-                zendif
-                sta rowno
-                
-                jsr play_current_row
-                sec
-                rts
+                ldx #0
+                lda sequence+0
             zendif
+            stx seqindex
+            sta patternno
+            lda #0
         zendif
+        sta rowno
+        
+        jsr play_current_row
+        sec
     zendif
     clc
 
@@ -319,4 +271,36 @@ zproc play_current_row
         dex
     zuntil mi
     rts
+zendproc
+
+zproc play_entire_song
+    jsr start_engine
+    zrepeat
+        jsr engine_tick
+        jsr process_row
+        jsr is_key_pressed
+    zuntil eq
+    jsr keyboard_interrupt
+    zrepeat
+        jsr engine_tick
+        jsr process_row
+        jsr is_key_pressed
+    zuntil ne
+    jsr stop_engine
+    jmp keyboard_interrupt
+zendproc
+
+zproc just_play_current_row
+    jsr start_engine
+    zrepeat
+        jsr engine_tick
+        jsr is_key_pressed
+    zuntil eq
+    jsr keyboard_interrupt
+    zrepeat
+        jsr engine_tick
+        jsr is_key_pressed
+    zuntil ne
+    jsr stop_engine
+    jmp keyboard_interrupt
 zendproc

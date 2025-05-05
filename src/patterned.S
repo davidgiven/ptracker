@@ -40,24 +40,7 @@ zproc do_patterneditor_keypress
     jsr play_current_row
     jsr cursor_on
     zrepeat
-        jsr start_engine
-        zrepeat
-            jsr engine_tick
-            zif cs
-                jsr draw_screen
-            zendif
-            jsr is_key_pressed
-        zuntil eq
-        jsr keyboard_interrupt
-        zrepeat
-            jsr engine_tick
-            zif cs
-                jsr draw_screen
-            zendif
-            jsr is_key_pressed
-        zuntil ne
-        jsr keyboard_interrupt
-        jsr stop_engine
+        jsr just_play_current_row
         jsr GETIN
     zuntil ne
     pha
@@ -178,9 +161,7 @@ zproc key_decrement
 zendproc
 
 zproc key_space
-    lda playing_flag
-    eor #0xff
-    sta playing_flag
+    jsr play_entire_song
     rts
 zendproc
 

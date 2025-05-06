@@ -11,11 +11,11 @@ import os
 OCTAVES = 5
 ERRORLIMIT = 10
 
-Note = namedtuple('Note', ["note", "error"])
-NoteSet = namedtuple('NoteSet', ["transpose", "samplerate", "notes", "error"])
+Note = namedtuple("Note", ["note", "error"])
+NoteSet = namedtuple("NoteSet", ["transpose", "samplerate", "notes", "error"])
 
 allnotes = set()
-for transpose in range(1*12, 1 * 12+1):
+for transpose in range(1 * 12, 1 * 12 + 1):
     for samplerate in range(8000, 20000):
         notes = []
         for n in range(24, 24 + (OCTAVES * 12)):
@@ -48,6 +48,20 @@ for transpose in range(1*12, 1 * 12+1):
             )
         )
 
-s = sorted(allnotes, key=lambda x: (x.notes, -x.samplerate, -x.error))
-for i in s:
-    print(i.notes, i.samplerate, "%d-%d" % (i.transpose, i.transpose+i.notes), i.error)
+allnotes = [n for n in allnotes if n.transpose == 36]
+grouped = groupby(sorted(allnotes, key=lambda x: x.notes), lambda x: x.notes)
+
+bestgroups = sorted(
+    [sorted(g[1], key=lambda x: (x.samplerate, -x.error))[0] for g in grouped],
+    key=lambda x: x.notes,
+)
+
+
+# ;s = sorted(allnotes, key=lambda x: (x.notes, -x.samplerate, -x.error))
+for i in bestgroups:
+    print(
+        i.notes,
+        i.samplerate,
+        "%d-%d" % (i.transpose, i.transpose + i.notes),
+        i.error,
+    )

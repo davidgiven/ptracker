@@ -46,6 +46,7 @@ e1t:        .fill 1 ; tone
 e2t:        .fill 1
 e3t:        .fill 1
 e4i:        .fill 1 ; drum instrument (reset after playing)
+eindex:     .fill 1 ; how many voices are left for envelope processing
 
 .global playing_flag, looping_flag
 .global tempoticks, rowptr, rowno, patternno, seqindex
@@ -82,9 +83,9 @@ zproc start_engine
     lda #hi(SAMPLE_PERIOD/2)
     sta VIA_T2C_H
 
-    lda #<5000              ; T1 ticks every 5ms
+    lda #<10000              ; T1 ticks every 10ms
     sta VIA_T1C_L
-    lda #>5000
+    lda #>10000
     sta VIA_T1C_H
 
     lda #0
@@ -111,6 +112,12 @@ zproc engine_tick
     ; Wait for the next SR interrupt.
 
     lda #0x04
+    bit VIA_IFR
+    zif ne
+        inc VRAM+34
+    zendif
+    stx VRAM+35
+
     zrepeat
         bit VIA_IFR
     zuntil ne
@@ -148,7 +155,8 @@ zproc engine_tick
         lda pcm_table, x
         eor nextsample
         sta nextsample
-        inc t4ptr
+        inx
+        stx t4ptr
     zendif
 
     ; Envelope processing.
@@ -161,94 +169,158 @@ zproc engine_tick
         
         dec tempoticks
 
-        lda #0
-        sta key_flag
-        jsr is_key_pressed
-        zif eq
-            dec key_flag
-        zendif
+        ; Every 10ms tick, we need to update the envelopes. This is more work than will fit before the next
+        ; shift register byte is due, so we split it into sections and handle it once every byte. Hopefully
+        ; the user won't notice.
 
-        ; Process the envelope.
+        lda #tick_processor_table_end - tick_processor_table
+        sta eindex
+    zendif
 
-        ldx #2                ; voice count - 1
-        zrepeat
-            ; Advance the sample pointer, if appropriate.
+    ldx eindex
+    zif ne
+        dex
+        dex
+        stx eindex
 
-            ldy e1t, x        ; get tone number into Y
-            dec e1i, x        ; sample interval timer
-            zif eq
-                ldy e1t, x    ; get tone number into Y
-                lda samplespeed, y
-                sta e1i, x    ; reset interval timer
-
-                inc e1p, x    ; increment sample pointer
-                lda e1p, x
-                cmp repeatend, y
-                zif eq
-                    lda repeatstart, y
-                    sta e1p, x
-                zendif
-            zendif
-
-            tya
-            jsr get_tone_data_into_w
-
-            ; Compute pitch.
-
-            lda pitchscale, y
-            sta q
-            ldy e1p, x        ; sample pointer
-            clc
-            lda #0
-            zrepeat           ; multiply by repeated add
-                adc (w), y    ; get pitch sample
-                dec q
-            zuntil eq
-
-            ; Modulus compute pitch.
-
-            clc
-            adc e1d, x        ; pitchbend delta
-            clc
-            zif mi
-                adc #NUM_PITCHES ; wrap round the bottom
-                clc
-            zendif
-            adc e1b, x        ; add base pitch
-            cmp #NUM_PITCHES
-            zif ge            ; wrap around the top
-                sec
-                sbc #NUM_PITCHES
-            zendif
-
-            ; ...and actually update the tone generator.
-
-            tay
-            lda note_table, y   ; convert to period
-            sta t1p, x          ; update tone generator
-
-            ; Compute volume.
-
-            lda e1p, x
-            clc
-            adc #64
-            tay
-            clc
-            lda e1v, x          ; get base volume
-            adc (w), y          ; add delta
-            zif mi
-                lda #0
-            zendif
-            cmp #0x10
-            zif ge
-                lda #0xf
-            zendif
-            sta t1m, x        ; update playing volume
-
-            dex
-        zuntil mi
+        lda tick_processor_table+0, x
+        sta w+0
+        lda tick_processor_table+1, x
+        sta w+1
+        jmp (w)
     zendif
     rts
+
+; Executed in reverse order!
+tick_processor_table:
+    .word tp_volume_envelope_3
+    .word tp_volume_envelope_2
+    .word tp_volume_envelope_1
+    .word tp_pitch_envelope_3
+    .word tp_pitch_envelope_2
+    .word tp_pitch_envelope_1
+    .word tp_advance_voice_3
+    .word tp_advance_voice_2
+    .word tp_advance_voice_1
+    .word tp_check_for_keypress
+tick_processor_table_end:
+zendproc
+
+zproc tp_check_for_keypress
+    lda #0
+    sta key_flag
+    jsr is_key_pressed
+    zif eq
+        dec key_flag
+    zendif
+    rts
+zendproc
+
+.macro tp_advance_voice voice
+    zproc tp_advance_voice_\voice
+        ldy e\voice\()t          ; get tone number
+        lda e\voice\()p
+        clc
+        adc #1
+        cmp repeatend, y
+        zif eq
+            lda repeatstart, y
+        zendif
+        sta e\voice\()p
+        rts
+    zendproc
+.endm
+
+tp_advance_voice 1
+tp_advance_voice 2
+tp_advance_voice 3
+
+.macro tp_pitch_envelope voice
+    zproc tp_pitch_envelope_\voice
+        ; Locate the tone data.
+
+        ldy e\voice\()t     ; get tone number
+        lda tone_table_hi, y
+        sta w+1
+        lda tone_pitch_table_lo, y
+        sta w+0
+
+        ldy e\voice\()p     ; get sample pointer
+        clc
+        lda e\voice\()b     ; get base pitch
+        adc (w), y          ; add delta from tone
+        clc
+        adc e\voice\()d     ; add pitch bend delta
+        zif mi
+            lda #0
+        zendif
+        cmp #NUM_PITCHES-1
+        zif ge
+            lda #NUM_PITCHES-1
+        zendif
+        tax
+        lda note_table, x   ; convert to period
+        sta t\voice\()p
+
+        rts
+    zendproc
+.endm
+
+tp_pitch_envelope 1
+tp_pitch_envelope 2
+tp_pitch_envelope 3
+
+.macro tp_volume_envelope voice
+    zproc tp_volume_envelope_\voice
+        ldy e\voice\()t         ; get tone number
+        lda tone_table_hi, y
+        sta w+1
+        lda tone_volume_table_lo, y
+        sta w+0
+
+        clc
+        lda e\voice\()v         ; get base volume
+        ldy e\voice\()p         ; get sample pointer
+        adc (w), y              ; add delta
+        zif mi
+            lda #0
+        zendif
+        cmp #0x10
+        zif ge
+            lda #0xf
+        zendif
+        sta t\voice\()m
+
+        rts
+    zendproc
+.endm
+
+tp_volume_envelope 1
+tp_volume_envelope 2
+tp_volume_envelope 3
+
+zproc tone_table_hi
+    i = 0
+    .rept 16
+        .byte (TONE_DATA + i*0x80)@mos16hi
+        i = i + 1
+    .endr
+zendproc
+
+zproc tone_pitch_table_lo
+    i = 0
+    .rept 16
+        .byte (TONE_DATA + i*0x80)@mos16lo
+        i = i + 1
+    .endr
+zendproc
+
+zproc tone_volume_table_lo
+    i = 0
+    .rept 16
+        .byte (TONE_DATA + i*0x80 + 0x40)@mos16lo
+        i = i + 1
+    .endr
 zendproc
 
 ; Given a tone number in A, sets w to the address of its sample data.
@@ -312,7 +384,7 @@ zproc process_row
         lda rowno
         clc
         adc #1
-        and #NUM_STEPS-1
+        cmp patternlength
         zif eq
         nextrow:
             ldx seqindex

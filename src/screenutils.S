@@ -134,12 +134,10 @@ zproc is_key_pressed
     sta PIA1_PA
 
     lda #0xff
-    ldx #10
-    zrepeat
+    .rept 10
         and PIA1_PB
         inc PIA1_PA
-        dex
-    zuntil eq
+    .endr
 
     cmp #0xff
     rts

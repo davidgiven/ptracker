@@ -6,6 +6,9 @@
 .global sequence, tempo, patternlength, numpatterns, sequencelength
 .global samplespeed, repeatstart, repeatend, pitchscale
 
+FILETYPE_BTRACKER = 0
+FILETYPE_PTRACKER = 1
+
 zproc filedata, .filedata
 MUSIC_DATA:
 sequence:       .fill 128
@@ -17,6 +20,7 @@ samplespeed:    .fill 16
 pitchscale:     .fill 16
 repeatstart:    .fill 16
 repeatend:      .fill 16
+filetype:       .fill 1
     .align 0x100
 TONE_DATA:      .fill TONE_SAMPLES*2*16
 PATTERN_DATA:

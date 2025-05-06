@@ -519,7 +519,7 @@ zproc play_entire_song
     jmp keyboard_interrupt
 zendproc
 
-zproc just_play_current_row
+zproc just_play_without_processing
     jsr start_engine
     zrepeat
         jsr engine_tick

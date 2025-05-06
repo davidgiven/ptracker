@@ -55,6 +55,29 @@ zproc hex_table
     .byte 1, 2, 3, 4, 5, 6 ; PET screen codes for a-f
 zendproc
 
+; Move scrptr to the beginning of line Y
+
+zproc set_scrptr_y
+    lda screen_table_lo, y
+    sta scrptr+0
+    lda screen_table_hi, y
+    sta scrptr+1
+    rts
+
+screen_table_hi:
+    i = 0
+    .rept 25
+        .byte hi(VRAM + i*40)
+        i = i + 1
+    .endr
+screen_table_lo:
+    i = 0
+    .rept 25
+        .byte lo(VRAM + i*40)
+        i = i + 1
+    .endr
+zendproc
+
 ; Advances/retards the screen pointer by A bytes.
 
 zproc advance_scrptr

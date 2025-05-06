@@ -24,6 +24,7 @@ llvmrawprogram(
         "src/patterned.S",
         "src/pcmdata.S",
         "src/screenutils.S",
+        "src/toneed.S",
         "src/samplerate.py",
     ],
 )

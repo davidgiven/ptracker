@@ -25,11 +25,11 @@ zproc pattern_editor
     zloop
         jsr reset_row_pointer
         jsr draw_screen
-        jsr do_patterneditor_keypress
+        jsr do_keypress
     zendloop
 zendproc
         
-zproc do_patterneditor_keypress
+zlproc do_keypress
     ; Place the cursor.
 
     ldy cursorx

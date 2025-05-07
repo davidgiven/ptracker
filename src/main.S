@@ -15,9 +15,10 @@ zendproc
 
 .section .zp, "zax", @nobits
 
-.global w, q
+.global w, q, p
 w:          .fill 2 ; general purpose temp
 q:          .fill 2 ; general purpose temp
+p:          .fill 2 ; general purpose temp
 
 zproc _start, .text.init
     ; Clear zero page.

@@ -21,6 +21,13 @@
     dec 0+\var
 .endm
 
+.macro cpy16 src, dst
+    lda #<\src
+    sta \dst+0
+    lda #>\src
+    sta \dst+1
+.endm
+
 ; Given a keytable specified by name, looks through it and jumps to the
 ; appropriate routine, or falls out the bottom.
 
@@ -68,7 +75,7 @@ ROW_LENGTH = NOTE_LENGTH * NUM_VOICES
 
 .extern midinote_table
 
-.zeropage w, q
+.zeropage w, q, p
 .zeropage scrptr
 
 .extern sequence

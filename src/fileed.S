@@ -104,7 +104,7 @@ zproc clear_all_data
     sta 0xda+0          ; filename
     lda #>name
     sta 0xda+1          ; filename
-    jsr load_file
+    ;jsr load_file
 
     rts
 

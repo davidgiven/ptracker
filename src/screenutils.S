@@ -165,3 +165,97 @@ zproc is_key_pressed
     cmp #0xff
     rts
 zendproc
+
+; Given a subpixel coordinate in X, Y, prepare (scrptr)+y to access it, set
+; q to the subpixel mask, and read and decode the byte itself.
+
+zproc access_subpixel_xy
+    stx w+0
+    sty w+1
+
+    ; Adjust coordinates and compute the subpixel mask.
+
+    lda #0
+    lsr w+1
+    rol a
+    lsr w+0
+    rol a
+    tax
+    lda 1f, x
+    sta q+0
+
+    ; Read and decode the subpixel itself.
+
+    ldy w+1
+    jsr set_scrptr_y
+    ldy w+0
+    lda (scrptr), y
+    jmp decode_subpixel
+
+1:
+    .byte 1, 2, 4, 8
+zendproc
+
+; Uses w and q.
+
+zproc plot_subpixel
+    txa
+    pha
+    tya
+    pha
+    
+    jsr access_subpixel_xy
+    ora q
+    tax
+    lda subpixel_table, x
+    sta (scrptr), y
+    
+    pla
+    tay
+    pla
+    tax
+    rts
+zendproc
+
+; Uses w and q.
+
+zproc unplot_subpixel
+    txa
+    pha
+    tya
+    pha
+
+    jsr access_subpixel_xy
+    sta q+1
+    lda q
+    eor #0x0f
+    and q+1
+    tax
+    lda subpixel_table, x
+    sta (scrptr), y
+    
+    pla
+    tay
+    pla
+    tax
+    rts
+zendproc
+
+zproc subpixel_table
+    .byte 32, 126, 124, 226, 123, 97, 255, 236
+    .byte 108, 127, 225, 251, 98, 252, 254, 160
+zendproc
+
+zproc decode_subpixel
+    ldx #15
+    zrepeat
+        cmp subpixel_table, x
+        beq 1f
+        dex
+    zuntil mi
+    ldx #0
+1:
+    txa
+    rts
+zendproc
+

@@ -16,6 +16,10 @@
     \name:
 .endm
 
+.macro zlproc name, sect=.text, binding=global
+    zproc \name, .text, local
+.endm
+
 .macro zendproc
     .if (zloopsp != 0) || (zifsp != 0)
         .error "Unclosed structure macro"

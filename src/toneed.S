@@ -76,6 +76,12 @@ zproc setup_screen_for_tone_editor
     ldx #5
     ldy #5
     jsr plot_subpixel
+    ldx #6
+    ldy #6
+    jsr plot_subpixel
+    ldx #5
+    ldy #5
+    jsr unplot_subpixel
     rts
 
 data:
@@ -136,14 +142,20 @@ zproc access_subpixel_xy
     rol a
     lsr w+0
     rol a
-    sta q
+    tax
+    lda 1f, x
+    sta q+0
+
+    ; Read and decode the subpixel itself.
 
     ldy w+1
     jsr set_scrptr_y
     ldy w+0
     lda (scrptr), y
-    jsr decode_subpixel
-    rts
+    jmp decode_subpixel
+
+1:
+    .byte 1, 2, 4, 8
 zendproc
 
 zproc plot_subpixel
@@ -155,21 +167,33 @@ zproc plot_subpixel
     rts
 zendproc
 
+zproc unplot_subpixel
+    jsr access_subpixel_xy
+    sta q+1
+    lda q
+    eor #0x0f
+    and q+1
+    tax
+    lda subpixel_table, x
+    sta (scrptr), y
+    rts
+zendproc
+
 zproc subpixel_table
-    .byte 0x20, 0x7E, 0x7C, 0xE2, 0x7B, 0x61, 0xFF, 0xEC
-    .byte 0x6C, 0x7F, 0xE1, 0xFB, 0x62, 0xFC, 0xFE, 0xE0
+    .byte 32, 126, 124, 226, 123, 97, 255, 236
+    .byte 108, 127, 225, 251, 98, 252, 254, 160
 zendproc
 
 zproc decode_subpixel
-    ldy #0
+    ldx #15
     zrepeat
-        cmp subpixel_table, y
+        cmp subpixel_table, x
         beq 1f
-        iny
-        cpy #0x16
-    zuntil eq
-    lda #0
+        dex
+    zuntil mi
+    ldx #0
 1:
+    txa
     rts
 zendproc
 

@@ -98,8 +98,8 @@ zlproc do_keypress
     rts
     
 key_table:
-    key 0x09, pattern_editor ; tab
-    key 0x12, pattern_editor ; rvs/off
+    key 0x09, file_editor ; tab
+    key 0x12, file_editor ; rvs/off
     key 0x11, key_down
     key 0x91, key_up
     key 0x1d, key_right
@@ -246,7 +246,7 @@ zlproc setup_screen_for_tone_editor
     jmp decompress
 
 data:
-#include "toneeditor_compressed.inc"
+#include "tonepage_compressed.inc"
 zendproc
 
 zlproc draw_label

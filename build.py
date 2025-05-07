@@ -12,7 +12,7 @@ simplerule(
 
 hostcxxprogram(name="compressor", srcs=["utils/compressor.cpp"])
 
-SCREENS = ["toneeditor", "patterneditor"]
+SCREENS = ["tonepage", "patternpage", "filepage"]
 
 compressed_screens = []
 for b in SCREENS:

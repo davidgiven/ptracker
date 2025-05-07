@@ -2,6 +2,45 @@
 #include "pet.inc"
 #include "zif.inc"
 
+zproc file_editor
+    ldx #0
+    txs
+    jsr setup_screen_for_file_editor
+
+    zloop
+        jsr do_keypress
+    zendloop
+zendproc
+          
+zlproc do_keypress
+    zrepeat
+        jsr GETIN
+    zuntil ne
+
+    key_lookup key_table
+    rts
+    
+key_table:
+    key 0x09, pattern_editor ; tab
+    key 0x12, pattern_editor ; rvs/off
+    .byte 0
+zendproc
+
+zlproc setup_screen_for_file_editor
+    lda #<data
+    sta w+0
+    lda #>data
+    sta w+1
+    lda #<VRAM
+    sta p+0
+    lda #>VRAM
+    sta p+1
+    jmp decompress
+
+data:
+#include "filepage_compressed.inc"
+zendproc
+
 zproc clear_all_data
     ; Wipe everything in the header area to zeroes (the pattern data is written
     ; completely later).

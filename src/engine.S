@@ -22,10 +22,12 @@ t4ptr:      .fill 1 ; PCM pointer
 t4len:      .fill 1 ; PCM max
 nextsample: .fill 1
 
+.global e1d, e2d, e3d
 .global e1b, e2b, e3b
 .global e1v, e2v, e3v
 .global e1c, e2c, e3c
 .global e1t, e2t, e3t
+.global e1p, e2p, e3p
 
 e1b:        .fill 1 ; base pitch
 e2b:        .fill 1

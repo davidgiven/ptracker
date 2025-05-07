@@ -35,7 +35,15 @@ zproc tone_editor
     ldx #0
     txs
     jsr setup_screen_for_tone_editor
-    
+
+    lda #0
+    sta e1v
+    sta e1d
+    sta e2v
+    sta e3v
+    sta t4ptr
+    sta t4len
+
     zloop
         ; Set editsampledata to the correct value.
 
@@ -56,8 +64,18 @@ zendproc
         
 zlproc do_keypress
     jsr select_edited_item
+
     zrepeat
-;        jsr just_play_without_processing
+        lda editnote
+        sta e1b
+        lda edittone
+        sta e1t
+        lda #15
+        sta e1v
+        lda #0
+        sta e1p
+
+        jsr just_play_without_processing
         jsr GETIN
     zuntil ne
     pha
@@ -65,6 +83,18 @@ zlproc do_keypress
     pla
 
     key_lookup key_table
+    
+    cmp #'0'
+    zif ge
+        cmp #'0'+OCTAVES+1
+        blt number_key
+    zendif
+
+    cmp #'A'
+    zif ge
+        cmp #'G'+1
+        blt letter_key
+    zendif
     rts
     
 key_table:
@@ -77,6 +107,84 @@ key_table:
     key 0x2d, key_decrement
     key 0x2b, key_increment
     .byte 0
+zendproc
+
+zlproc letter_key
+    sec
+    sbc #'A'
+    zif ge
+        cmp #8
+        zif lt
+            pha
+            ldx editnote
+            lda note_decode_table, x    ; decode to octave, pitch
+            lsr a
+            lsr a
+            lsr a
+            lsr a                       ; extract octave number
+            tax
+            lda octave_to_note_table, x ; get pitch of C for this octave
+            sta p
+            pla
+
+            tax
+            lda name_to_note_table, x   ; get relative pitch of this note
+            clc
+            adc p                       ; adjust for octave
+            sta editnote
+        zendif
+    zendif
+    rts
+zendproc
+
+zlproc number_key
+    sec
+    sbc #'0'
+    zif ge
+        cmp #OCTAVES+1
+        zif lt
+            sta p
+
+            lda editnote
+            tax
+            lda note_decode_table, x    ; decode to octave, pitch
+            lsr a
+            lsr a
+            lsr a
+            lsr a
+            tax
+            cmp p                       ; test current octave against desired
+            zif lt
+                ; Raising octave
+
+                lda editnote
+                zrepeat
+                    clc
+                    adc #12*3
+                    cmp #NUM_PITCHES
+                    bge 1f
+                    inx
+                    cpx p
+                zuntil eq
+                sta editnote
+                rts
+            zendif
+
+            ; Lowering octave
+
+            lda editnote
+            zrepeat
+                sec
+                sbc #12*3
+                bcc 1f
+                dex
+                cpx p
+            zuntil eq
+            sta editnote
+        zendif
+    zendif
+1:
+    rts
 zendproc
 
 zlproc key_up
@@ -248,6 +356,13 @@ zlproc redraw
         ldx #6
     zendif
     jsr draw_label
+
+    lda #lo(NOTE_ADDRESS)
+    sta scrptr+0
+    lda #hi(NOTE_ADDRESS)
+    sta scrptr+1
+    lda editnote
+    jsr draw_raw_note
 
     ; Clear the graph area.
 

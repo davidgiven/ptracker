@@ -90,6 +90,8 @@ ROW_LENGTH = NOTE_LENGTH * NUM_VOICES
 .zeropage e1v, e2v, e3v
 .zeropage e1c, e2c, e3c
 .zeropage e1t, e2t, e3t
+.zeropage e1d, e2d, e3d
+.zeropage t4ptr, t4len
 
 .zeropage rowno, rowptr, patternno
 

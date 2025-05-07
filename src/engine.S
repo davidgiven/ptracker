@@ -41,9 +41,6 @@ e3v:        .fill 1
 e1p:        .fill 1 ; sample pointer
 e2p:        .fill 1
 e3p:        .fill 1
-e1i:        .fill 1 ; ticks until next pointer increment
-e2i:        .fill 1
-e3i:        .fill 1
 e1t:        .fill 1 ; tone
 e2t:        .fill 1
 e3t:        .fill 1
@@ -468,9 +465,6 @@ is_note:
     lsr a
     lsr a
     sta e1t, x          ; tone
-    tay
-    lda samplespeed, y
-    sta e1i, x          ; initialise sample interval
 
     lda #0
     sta e1p, x          ; sample pointer

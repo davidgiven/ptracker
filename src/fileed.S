@@ -272,9 +272,13 @@ zproc save_file
     sta w+0
     lda #>MUSIC_DATA
     sta w+1
+    clc
+    lda numpatterns
+    adc #>PATTERN_DATA
+    sta p
     zrepeat
         lda w+1
-        cmp #>VRAM
+        cmp p
         zbreakif eq
 
         lda #0

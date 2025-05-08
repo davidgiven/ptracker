@@ -30,9 +30,46 @@ zproc _start, .text.init
         dex
     zuntil mi
 
+    jsr engine_mode
     jsr init_screen
     jsr clear_all_data
 
     jsr reset_row_pointer
     jmp file_editor
+
+bad_rom:
+zendproc
+
+zproc engine_mode
+    sei
+    rts
+zendproc
+
+; Force an immediate hardware interrupt to let the kernal do housekeeping. Run
+; with interrupts off.
+        
+zlproc keyboard_interrupt
+    lda #>1f
+    pha
+    lda #<1f
+    pha
+    php                     ; P
+    php                     ; A
+    php                     ; Y
+    php                     ; X
+    jmp (IRQ_VECTOR)
+1:
+    rts
+zendproc
+
+zproc kernal_mode
+    pha
+    sei
+    jsr keyboard_interrupt
+    cli
+    zrepeat
+        jsr GETIN
+    zuntil eq
+    pla
+    rts
 zendproc

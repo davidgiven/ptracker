@@ -14,7 +14,7 @@ zendproc
           
 zlproc do_keypress
     zrepeat
-        jsr GETIN
+        jsr getch
     zuntil ne
 
     key_lookup key_table
@@ -22,7 +22,6 @@ zlproc do_keypress
     
 key_table:
     key 0x09, pattern_editor ; tab
-    key 0x12, pattern_editor ; rvs/off
     key 'L', key_l
     key 'S', key_s
     .byte 0
@@ -35,7 +34,9 @@ zlproc key_l
     jsr text_prompt
     tya
     zif ne
-        jmp load_file
+        jsr kernal_mode
+        jsr load_file
+        jsr engine_mode
     zendif
     rts
 
@@ -52,7 +53,9 @@ zlproc key_s
     jsr text_prompt
     tya
     zif ne
-        jmp save_file
+        jsr kernal_mode
+        jsr save_file
+        jsr engine_mode
     zendif
     rts
 

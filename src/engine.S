@@ -69,8 +69,6 @@ BITRATE = 3
 .comm old_interrupt_vector, 2
 
 zproc start_engine
-    sei
-
     lda #0x54               ; T1 continuous, T2 one-shot, SR under T2 control
     sta VIA_ACR
 
@@ -102,8 +100,6 @@ zendproc
 zproc stop_engine
     lda #'N'
     sta VRAM+39
-
-    cli
     rts
 zendproc
 
@@ -209,7 +205,7 @@ zproc tp_check_for_keypress
     lda #0
     sta key_flag
     jsr is_key_pressed
-    zif eq
+    zif ne
         dec key_flag
     zendif
     rts
@@ -337,23 +333,6 @@ zproc get_tone_data_into_w
     lda #0
     ror a
     sta w+0             ; low byte
-    rts
-zendproc
-
-; Force an immediate hardware interrupt to let the kernal do housekeeping. Run
-; with interrupts off.
-        
-zproc keyboard_interrupt
-    lda #>1f
-    pha
-    lda #<1f
-    pha
-    php                     ; P
-    php                     ; A
-    php                     ; Y
-    php                     ; X
-    jmp (IRQ_VECTOR)
-1:
     rts
 zendproc
 
@@ -503,29 +482,27 @@ zproc play_entire_song
     zrepeat
         jsr engine_tick
         jsr process_row
-        lda key_flag
-    zuntil eq
-    jsr keyboard_interrupt
+        bit key_flag
+    zuntil pl               ; loop while pressed
+    jsr scan_keyboard       ; so the keyboard sees a keyup
     zrepeat
         jsr engine_tick
         jsr process_row
-        lda key_flag
-    zuntil ne
-    jsr stop_engine
-    jmp keyboard_interrupt
+        bit key_flag
+    zuntil mi               ; loop while not pressed
+    jmp stop_engine
 zendproc
 
 zproc just_play_without_processing
     jsr start_engine
     zrepeat
         jsr engine_tick
-        lda key_flag
-    zuntil eq
-    jsr keyboard_interrupt
+        bit key_flag
+    zuntil pl               ; loop while pressed
+    jsr scan_keyboard       ; so the keyboard sees a keyup
     zrepeat
         jsr engine_tick
-        lda key_flag
-    zuntil ne
-    jsr stop_engine
-    jmp keyboard_interrupt
+        bit key_flag
+    zuntil mi               ; loop while not pressed
+    jmp stop_engine
 zendproc

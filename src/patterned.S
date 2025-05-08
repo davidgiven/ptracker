@@ -41,7 +41,7 @@ zlproc do_keypress
     jsr cursor_on
     zrepeat
         jsr just_play_without_processing
-        jsr GETIN
+        jsr getch
     zuntil ne
     pha
     jsr cursor_off
@@ -77,7 +77,6 @@ key_table:
     key 0x1d, key_right
     key 0x9d, key_left
     key 0x09, tone_editor ; tab
-    key 0x12, tone_editor ; rvs/off
     key 0x2d, key_decrement
     key 0x2b, key_increment
     key 0x20, key_space
@@ -98,13 +97,10 @@ zproc letter_key
 zendproc
 
 zproc key_esc
-    sei
     lda #0
     sta e1v
     sta e2v
     sta e3v
-    cli
-    rts
 zendproc
 
 zproc key_up
@@ -117,6 +113,18 @@ zproc key_up
 zendproc
 
 zproc key_down
+    bit ctrl_flag
+    zif mi
+        ldx patternno
+        inx
+        cpx numpatterns
+        zif eq
+            ldx #0
+        zendif
+        stx patternno
+        rts
+    zendif
+
     lda rowno
     clc
     adc #1

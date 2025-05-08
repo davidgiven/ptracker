@@ -12,7 +12,7 @@ editnote:               .fill 1 ; the current test note
 editingvolume_flag:          .fill 1 ; whether editing volume (rather than pitch)
 
 GRAPH_X = 8
-GRAPH_Y = 29
+GRAPH_Y = 31
 
 TONE_ADDRESS        = VRAM + 13 + 2*40
 REPEATSTART_ADDRESS = TONE_ADDRESS + 40
@@ -76,7 +76,7 @@ zlproc do_keypress
         sta e1p
 
         jsr just_play_without_processing
-        jsr GETIN
+        jsr getch
     zuntil ne
     pha
     jsr cursor_off
@@ -99,7 +99,6 @@ zlproc do_keypress
     
 key_table:
     key 0x09, file_editor ; tab
-    key 0x12, file_editor ; rvs/off
     key 0x11, key_down
     key 0x91, key_up
     key 0x1d, key_right
@@ -336,7 +335,7 @@ zlproc redraw
 
     ; Clear the graph area.
 
-    ldy #7
+    ldy #8
     jsr set_scrptr_y
     ldx #16
     zrepeat

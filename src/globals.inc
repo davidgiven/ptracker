@@ -94,6 +94,9 @@ ROW_LENGTH = NOTE_LENGTH * NUM_VOICES
 
 .zeropage rowno, rowptr, patternno
 
+.zeropage ctrl_flag
+.zeropage shift_flag
+
 C_0  = 0*36+0
 CS_0 = 0*36+3
 D_0  = 0*36+6

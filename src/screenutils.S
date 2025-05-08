@@ -4,21 +4,66 @@
 
 ZEROPAGE
 
-.global scrptr
-scrptr:     .fill 2
-cursor_flag: .fill 1
+.global scrptr, ctrl_flag, shift_flag
+
+scrptr:         .fill 2
+cursor_flag:    .fill 1
+keymap_ptr:     .fill 2
+keyboard_state: .fill 10
+shift_flag:     .fill 1
+ctrl_flag:      .fill 1
+pending_key:    .fill 1
 
 zproc init_screen
+    jsr detect_keyboard_type
+
+    ldx #9
+    lda #0xff
+    zrepeat
+        sta keyboard_state, x
+        dex
+    zuntil mi
+
     lda #0
     sta cursor_flag
-    sta PNT+0
-    lda #0x80
-    sta PNT+1
+    ldy #0
+    jsr set_curptr_y
     jsr clear_screen
 
     lda #0xae       ; switch to lower case
     sta VIA_PCR
     rts
+zendproc
+
+zlproc detect_keyboard_type
+    ; Find the CTRL (RVS) key in the keymap.
+
+    lda 0xe0df
+    cmp #0xbd           ; check for lda <abs>, x
+    bne bad_rom
+    sec
+    lda 0xe0e0
+    sbc #79
+    sta keymap_ptr+0
+    lda 0xe0e1
+    sbc #0
+    sta keymap_ptr+1
+    rts
+
+bad_rom:
+    ldx #0
+    zrepeat
+        lda 1f, x
+        jsr CHROUT
+        inx
+        cpx #2f - 1f
+    zuntil eq
+    brk
+1:
+    .byte 13
+    .ascii "bad rom"
+    .byte 13
+2:
 zendproc
 
 ; Various print-char routines.
@@ -104,8 +149,10 @@ zproc retard_scrptr
 zendproc
 
 zproc clear_screen
+    jsr kernal_mode
     lda #147            ; clear screen
-    jmp CHROUT
+    jsr CHROUT
+    jmp engine_mode
 zendproc
 
 ; Move PNT to the beginning of line Y
@@ -151,7 +198,7 @@ zproc cursor_off
 zendproc
 
 ; Polls the keyboard but does not consume the key (can be run with the vsync
-; interrupt disabled).
+; interrupt disabled). Returns Z for no.
 
 zproc is_key_pressed
     lda PIA1_PA
@@ -338,7 +385,7 @@ zproc text_prompt
     zloop
         jsr cursor_on
         zrepeat
-            jsr GETIN
+            jsr getch
         zuntil ne
 
         pha
@@ -369,7 +416,10 @@ zproc text_prompt
         zif eq
             cpy #0
             zif ne
-                jsr CHROUT
+                dey
+                sty PNTR
+                lda #0x20
+                sta (PNT), y
                 zcontinue
             zendif
         zendif
@@ -381,7 +431,9 @@ zproc text_prompt
                 cpy #16
                 zif ne
                     sta text_buffer, y
-                    jsr CHROUT
+                    jsr petscii_to_screencode
+                    sta (PNT), y
+                    inc PNTR
                 zendif
             zendif
         zendif
@@ -395,5 +447,161 @@ zproc text_prompt
     sty FNLEN
     rts
 zendproc
-
 .common text_buffer, 16+1
+
+zproc scan_keyboard
+    lda PIA1_PA
+    and #0xf0
+    sta PIA1_PA
+
+    zloop
+        lda PIA1_PA         ; get row being probed
+        and #0x0f
+        cmp #10
+        zbreakif eq
+        tay
+
+        lda PIA1_PB
+        tax
+        eor keyboard_state, y
+        zif ne
+            ; Any set bits in A correspond to a key which has changes state.
+            ; The corresponding bit in X tells us whether it went up or down.
+
+            stx keyboard_state, y
+            stx p+1
+
+            pha
+            tya
+            eor #0xff       ; compute 9-A, because the scancode table is backwards
+            sec
+            adc #9
+            asl a
+            asl a
+            asl a
+            tay             ; compute row*8 to get base of row
+            pla
+
+            zrepeat
+                asl a
+                zif cs
+                    pha
+                    lda (keymap_ptr), y ; get scancode
+                    jsr change_key_state
+                    pla
+                zendif
+                asl p+1
+                iny
+                tax         ; set flags from A
+            zuntil eq       ; no more bits set, give up
+        zendif
+
+        inc PIA1_PA         ; next row
+    zendloop
+    rts
+zendproc
+        
+; A is the scancode; the top bit of p+1 is _clear_ if it's down.
+; Don't corrupt Y.
+
+zlproc change_key_state
+    cmp #0xff
+    zif ne                  ; no key
+        cmp #0x00               ; shift
+        zif eq
+            ldx #0xff
+            bit p+1
+            zif mi
+                inx
+            zendif
+            stx shift_flag
+            rts
+        zendif
+
+        cmp #0x12               ; ctrl
+        zif eq
+            ldx #0xff
+            bit p+1
+            zif mi
+                inx
+            zendif
+            stx ctrl_flag
+            rts
+        zendif
+
+        ; Otherwise, it's a typing key.
+
+        bit p+1
+        zif pl
+            sta pending_key
+        zendif
+    zendif
+    rts
+zendproc
+
+; Fetches a character from the kernal, like GETIN, but with fake-ctrl-key mapping.
+
+zproc getch
+    lda pending_key
+    zif eq
+        jsr scan_keyboard
+        lda pending_key
+    zendif
+    
+    zif ne                  ; if key pressed
+        php
+        and #0x7f               ; remove non-shiftable flag bit
+        plp
+        zif pl                  ; if shiftable
+            bit shift_flag      ; if shift pressed
+            zif mi
+                ora #0x80
+            zendif
+        zendif
+    zendif
+
+    ldx #0
+    stx pending_key
+    tax                     ; set flags
+    rts
+zendproc
+
+zproc petscii_to_screencode
+    cmp #0x20
+    bcc rev
+
+    cmp #0x60
+    bcc b1
+
+    cmp #0x80
+    bcc b2
+
+    cmp #0xa0
+    bcc b3
+
+    cmp #0xc0
+    bcc b4
+
+    cmp #0xff
+    bcc rev
+
+    lda #0x7e
+    bne end
+
+b2:
+	and #0x5f		; if A=96..127 then strip bits 5 and 7
+    bne end
+b3:
+	ora #0x40		; if A=128..159, then set bit 6
+    bne end
+b4:
+	eor #0xc0		; if A=160..191 then flip bits 6 and 7
+    bne end
+b1:
+	and #0x3f		; if A=32..95 then strip bits 6 and 7
+    .byte 0x2c      ; BIT <abs>; skip next two bytes
+rev:
+	eor #0x80		; flip bit 7 (reverse on when off and vice versa)
+end:
+    rts
+zendproc

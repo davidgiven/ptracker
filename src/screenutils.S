@@ -6,15 +6,14 @@ ZEROPAGE
 
 .global scrptr
 scrptr:     .fill 2
-curptr:     .fill 2
 cursor_flag: .fill 1
 
 zproc init_screen
     lda #0
     sta cursor_flag
-    sta curptr+0
+    sta PNT+0
     lda #0x80
-    sta curptr+1
+    sta PNT+1
     jsr clear_screen
 
     lda #0xae       ; switch to lower case
@@ -63,14 +62,17 @@ zproc set_scrptr_y
     lda screen_table_hi, y
     sta scrptr+1
     rts
+zendproc
 
-screen_table_hi:
+zproc screen_table_hi
     i = 0
     .rept 25
         .byte hi(VRAM + i*40)
         i = i + 1
     .endr
-screen_table_lo:
+zendproc
+
+zproc screen_table_lo
     i = 0
     .rept 25
         .byte lo(VRAM + i*40)
@@ -102,31 +104,31 @@ zproc retard_scrptr
 zendproc
 
 zproc clear_screen
-    lda #32
-    ldx #0
-    zrepeat
-        sta VRAM+0x0000, x
-        sta VRAM+0x0100, x
-        sta VRAM+0x0200, x
-        sta VRAM+0x0300, x
-        dex
-    zuntil eq
-    rts
+    lda #147            ; clear screen
+    jmp CHROUT
 zendproc
 
-; Moves the cursor to the address at YYXX.
+; Move PNT to the beginning of line Y
 
-zproc move_cursor
-    stx curptr+0
-    sty curptr+1
+zproc set_curptr_y
+    ldx screen_table_lo, y
+    lda screen_table_hi, y
+    tay
+; Moves the cursor to the address at YYXX.
+.global move_cursor
+move_cursor:
+    stx PNT+0
+    sty PNT+1
+    lda #0
+    sta PNTR
     rts
 zendproc
 
 zproc toggle_cursor
-    ldy #0
+    ldy PNTR
     lda #0x80
-    eor (curptr), y
-    sta (curptr), y
+    eor (PNT), y
+    sta (PNT), y
     rts
 zendproc
 
@@ -259,3 +261,139 @@ zproc decode_subpixel
     rts
 zendproc
 
+; Returns the length of the message in Y.
+
+zproc text_prompt
+    sta p+0     ; text indent
+    stx w+0     ; pointer to message
+    sty w+1
+
+    ; Draw the 'dialogue box' with the message in it.
+
+    ldy #10
+    jsr set_scrptr_y
+    ldy #39
+    lda #0x63
+    zrepeat
+        sta (scrptr), y
+        dey
+    zuntil mi
+
+    ldy #11
+    jsr set_scrptr_y
+    ldy #40*5-1
+    lda #0x20
+    zrepeat
+        sta (scrptr), y
+        dey
+    zuntil mi
+
+    ldy #16
+    jsr set_scrptr_y
+    ldy #39
+    lda #0x64
+    zrepeat
+        sta (scrptr), y
+        dey
+    zuntil mi
+    
+    ldy #11
+    jsr set_scrptr_y
+    lda #0
+    sta p+1         ; offset into message
+    zloop
+        ldy p+1
+        lda (w), y  ; read char from message
+        zbreakif eq
+
+        ldy p+0
+        sta (scrptr), y ; write char to screen
+
+        inc p+0
+        inc p+1
+    zendloop
+
+    ldy #15
+    jsr set_scrptr_y
+    ldy #12
+    lda #0x63
+    zrepeat
+        sta (scrptr), y
+        iny
+        cpy #28
+    zuntil eq
+
+    lda #62
+    sta VRAM + 14*40 + 10
+
+    ; The editor itself.
+
+    lda #<(VRAM + 14*40 + 12)
+    sta PNT+0
+    lda #>(VRAM + 14*40 + 12)
+    sta PNT+1
+
+    ldy #0              ; X position
+    sty PNTR
+    zloop
+        jsr cursor_on
+        zrepeat
+            jsr GETIN
+        zuntil ne
+
+        pha
+        jsr cursor_off
+        lda #<VRAM
+        sta scrptr+0
+        lda #>VRAM
+        sta scrptr+1
+        pla
+        pha
+        jsr print_h8
+        pla
+
+        ldy PNTR
+
+        cmp #0x0d ; return
+        zbreakif eq
+
+        cmp #0x03 ; escape
+        zif eq
+        1:
+            ldy #0
+            sta FNLEN
+            rts
+        zendif
+
+        cmp #0x14 ; delete
+        zif eq
+            cpy #0
+            zif ne
+                jsr CHROUT
+                zcontinue
+            zendif
+        zendif
+
+        cmp #32
+        zif ge
+            cmp #127
+            zif lt
+                cpy #16
+                zif ne
+                    sta text_buffer, y
+                    jsr CHROUT
+                zendif
+            zendif
+        zendif
+    zendloop
+    lda #0
+    sta text_buffer, y
+    lda #<text_buffer
+    sta FNADR+0
+    lda #>text_buffer
+    sta FNADR+1
+    sty FNLEN
+    rts
+zendproc
+
+.common text_buffer, 16+1

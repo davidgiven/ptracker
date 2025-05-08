@@ -5,9 +5,9 @@
 zproc file_editor
     ldx #0
     txs
-    jsr setup_screen_for_file_editor
 
     zloop
+        jsr setup_screen_for_file_editor
         jsr do_keypress
     zendloop
 zendproc
@@ -23,7 +23,43 @@ zlproc do_keypress
 key_table:
     key 0x09, pattern_editor ; tab
     key 0x12, pattern_editor ; rvs/off
+    key 'L', key_l
+    key 'S', key_s
     .byte 0
+zendproc
+
+zlproc key_l
+    lda #20 - (2f-1f)/2
+    ldx #<1f
+    ldy #>1f
+    jsr text_prompt
+    tya
+    zif ne
+        jmp load_file
+    zendif
+    rts
+
+1:
+    ; "Filename to load:"
+    .byte 70, 9, 12, 5, 14, 1, 13, 5, 32, 20, 15, 32, 12, 15, 1, 4, 58, 0
+2:
+zendproc
+
+zlproc key_s
+    lda #20 - (2f-1f)/2
+    ldx #<1f
+    ldy #>1f
+    jsr text_prompt
+    tya
+    zif ne
+        jmp save_file
+    zendif
+    rts
+
+1:
+    ; "Filename to save:"
+    .byte 70, 9, 12, 5, 14, 1, 13, 5, 32, 20, 15, 32, 19, 1, 22, 5, 58, 0
+2:
 zendproc
 
 zlproc setup_screen_for_file_editor
@@ -81,7 +117,6 @@ zproc clear_all_data
 
     ; Initialise tone data.
 
-    .if 0
     ldx #15
     zrepeat
         lda #1
@@ -91,7 +126,6 @@ zproc clear_all_data
         sta repeatend, x
         dex
     zuntil mi
-    .endif
  
     ; Wipe pattern data.
 
@@ -136,25 +170,22 @@ zproc clear_all_data
         lda w+1
         cmp #>VRAM
     zuntil eq
-
-    lda #8
-    sta 0xd1            ; length of filename
-    lda #<name
-    sta 0xda+0          ; filename
-    lda #>name
-    sta 0xda+1          ; filename
-    ;jsr load_file
-
     rts
-
-name:
-    .ascii "0:DEBRIS"
-name_end:
 zendproc
     
+zlproc print_filename
+    ldy #0
+    zrepeat
+        lda (FNADR), y
+        jsr CHROUT
+        iny
+        cpy FNLEN
+    zuntil eq
+    rts
+zendproc
+
 zproc load_file
-    lda #147            ; clear screen
-    jsr CHROUT
+    jsr clear_screen
 
     ldy #0
     zrepeat
@@ -164,33 +195,27 @@ zproc load_file
         cpy #(loading_msg_end - loading_msg)
     zuntil eq
 
-    ldy #0
-    zrepeat
-        lda (0xda), y
-        jsr CHROUT
-        iny
-        cpy 0xd1
-    zuntil eq
+    jsr print_filename
 
+    lda #0x60
+    sta SA            ; secondary address
+    lda #8
+    sta FA            ; device number
+    
+    jsr 0xf449          ; open?
+    jsr 0xf4a5          ; LISTEN
+    jsr 0xf0d2          ; TALK
+    lda SA
+    jsr 0xf193          ; send IEEE-488 char
+    
+    jsr clear_all_data
     lda #<MUSIC_DATA
     sta w+0
     lda #>MUSIC_DATA
     sta w+1
-
-    lda #0x60
-    sta 0xd3            ; secondary address
-    lda #8
-    sta 0xd4            ; device number
-    
-    jsr 0xf449
-    jsr 0xf4a5
-    jsr 0xf0d2
-    lda 0xd3
-    jsr 0xf193
-    
     zrepeat
         lda #0
-        sta 0x96
+        sta STATUS
 
         jsr 0xf1c0      ; read byte
         ldy #0
@@ -203,14 +228,123 @@ zproc load_file
             jsr CHROUT
         zendif
 
-        lda 0x96
+        lda STATUS
     zuntil ne
+    pha
+    jsr 0xf3ce          ; untalk and close
+    pla
 
-    jsr 0xf1ae          ; UNTALK
-    jsr 0xf72f
+    and #0x40           ; EOF
+    zif eq
+        jsr show_disk_error
+    zendif
     rts
 
 loading_msg:
     .ascii "LOADING "
 loading_msg_end:
+zendproc
+
+zproc save_file
+    jsr clear_screen
+
+    ldy #0
+    zrepeat
+        lda saving_msg, y
+        jsr CHROUT
+        iny
+        cpy #(saving_msg_end - saving_msg)
+    zuntil eq
+
+    jsr print_filename
+
+    lda #0x61
+    sta SA            ; secondary address
+    lda #8
+    sta FA            ; device number
+    
+    jsr 0xf4a5
+    jsr 0xf0d5
+    lda SA
+    jsr 0xf143
+    
+    lda #<MUSIC_DATA
+    sta w+0
+    lda #>MUSIC_DATA
+    sta w+1
+    zrepeat
+        lda w+1
+        cmp #>VRAM
+        zbreakif eq
+
+        lda #0
+        sta STATUS
+
+        ldy #0
+        lda (w), y
+        jsr 0xf143
+
+        inc w+0
+        zif eq
+            inc w+1
+            lda #'.'
+            jsr CHROUT
+        zendif
+
+        lda STATUS
+    zuntil ne
+    pha
+    jsr 0xf72c          ; unlisten and close
+    pla
+
+    jmp show_disk_error
+
+saving_msg:
+    .ascii "SAVING "
+saving_msg_end:
+zendproc
+
+zproc show_disk_error
+    lda #13
+    jsr CHROUT
+    jsr CHROUT
+
+    lda #0x6f
+    sta SA            ; secondary address (error channel)
+    lda #8
+    sta FA            ; device number
+    
+    jsr 0xf0d2          ; TALK
+    lda SA
+    jsr 0xf193          ; send IEEE-488 char
+    
+    zrepeat
+        lda #0
+        sta STATUS
+
+        jsr 0xf1c0      ; read byte
+        jsr CHROUT
+
+        lda STATUS
+    zuntil ne
+
+    jsr 0xf1ae          ; UNTALK
+
+    ldy #0
+    zrepeat
+        lda wait_msg, y
+        jsr CHROUT
+        iny
+        cpy #(wait_msg_end - wait_msg)
+    zuntil eq
+
+    zrepeat
+        jsr GETIN
+    zuntil ne
+    rts
+
+wait_msg:
+    .byte 13, 13
+    .ascii "PRESS ANY KEY"
+wait_msg_end:
 zendproc

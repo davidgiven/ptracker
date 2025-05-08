@@ -34,7 +34,5 @@ zproc _start, .text.init
     jsr clear_all_data
 
     jsr reset_row_pointer
-    jsr start_engine
-    jsr stop_engine
-    jmp pattern_editor
+    jmp file_editor
 zendproc

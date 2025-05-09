@@ -22,6 +22,7 @@ zlproc do_keypress
     
 key_table:
     key 0x09, pattern_editor ; tab
+    key 0x13, pattern_editor ; clr/home
     key 'L', key_l
     key 'S', key_s
     .byte 0

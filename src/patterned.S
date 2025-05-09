@@ -77,6 +77,7 @@ key_table:
     key 0x1d, key_right
     key 0x9d, key_left
     key 0x09, tone_editor ; tab
+    key 0x13, tone_editor ; clr/home
     key 0x2d, key_decrement
     key 0x2b, key_increment
     key 0x20, key_space

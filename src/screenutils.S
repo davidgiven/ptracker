@@ -205,13 +205,71 @@ zproc is_key_pressed
     and #0xf0
     sta PIA1_PA
 
-    lda #0xff
-    .rept 10
-        and PIA1_PB
-        inc PIA1_PA
-    .endr
+    ; Everything about the PET keyboard is annoying. At least the first five rows are the same on both the business and graphics keyboards.
 
+    lda PIA1_PB
+    inc PIA1_PA
+    and PIA1_PB
+    inc PIA1_PA
+    and PIA1_PB
+    inc PIA1_PA
+    and PIA1_PB
+    inc PIA1_PA
+    and PIA1_PB
+    inc PIA1_PA
+    and PIA1_PB
     cmp #0xff
+    bne 1f
+
+    ldy #0
+    lda (keymap_ptr), y
+    cmp #0x3d
+    zif eq
+        ; Graphics keyboard
+    
+        inc PIA1_PA
+        lda PIA1_PB
+        inc PIA1_PA
+        and PIA1_PB
+        cmp #0xff
+        bne 1f
+
+        inc PIA1_PA
+        lda PIA1_PB
+        ora #0x21           ; always treat the shift keys as if they're released
+        cmp #0xff
+        bne 1f
+
+        inc PIA1_PA
+        lda PIA1_PB
+        ora #0x01           ; always treat RVS/CTRL as if it's released
+        cmp #0xff
+        rts
+    zendif
+
+    ; Business keyboard.
+
+    inc PIA1_PA
+    lda PIA1_PB
+    ora #0x41           ; always treat the shift keys as if they're released
+    cmp #0xff
+    bne 1f
+
+    inc PIA1_PA
+    ldx PIA1_PB
+    inx
+    bne 1f
+
+    inc PIA1_PA
+    lda PIA1_PB
+    ora #0x01           ; always treat RVS/CTRL as if it's released
+    cmp #0xff
+    bne 1f
+
+    inc PIA1_PA
+    lda PIA1_PB
+    cmp #0xff
+1:
     rts
 zendproc
 

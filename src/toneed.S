@@ -99,6 +99,7 @@ zlproc do_keypress
     
 key_table:
     key 0x09, file_editor ; tab
+    key 0x13, file_editor ; clr/home
     key 0x11, key_down
     key 0x91, key_up
     key 0x1d, key_right

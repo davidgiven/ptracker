@@ -99,6 +99,7 @@ ctrl_key_table:
     key 'D', key_ctrl_d     ; delete from sequence
     key 'N', key_ctrl_n     ; create new pattern
     key 'T', key_ctrl_t     ; change tempo
+    key 'L', key_ctrl_l     ; change pattern length
     .byte 0
 zendproc
 
@@ -136,11 +137,13 @@ zproc key_up
         rts
     zendif
 
-    lda rowno
-    sec
-    sbc #1
-    and #NUM_STEPS-1
-    sta rowno
+    ldx rowno
+    dex
+    zif mi
+        ldx patternlength
+        dex
+    zendif
+    stx rowno
     rts
 zendproc
 
@@ -157,11 +160,13 @@ zproc key_down
         rts
     zendif
 
-    lda rowno
-    clc
-    adc #1
-    and #NUM_STEPS-1
-    sta rowno
+    ldx rowno
+    inx
+    cpx patternlength
+    zif eq
+        ldx #0
+    zendif
+    stx rowno
     rts
 zendproc
 
@@ -342,9 +347,6 @@ zlproc key_ctrl_t
         jsr parse_hex
         bcs 3f
 
-        cmp #0x20
-        bge 3f
-
         sta tempo
     zendif
     jmp setup_screen_for_pattern_editor
@@ -356,6 +358,38 @@ zlproc key_ctrl_t
     ; "Enter new tempo:"
     .byte 0x45, 0x0e, 0x14, 0x05, 0x12, 0x20, 0x0e, 0x05
     .byte 0x17, 0x20, 0x14, 0x05, 0x0d, 0x10, 0x0f, 0x3a
+2:
+    .byte 0
+zendproc
+
+; Change the pattern length.
+
+zlproc key_ctrl_l
+    lda #20 - (2f-1f)/2
+    ldx #<1f
+    ldy #>1f
+    jsr text_prompt
+    tya
+    zif ne
+        jsr parse_hex
+        bcs 3f
+
+        cmp #0x20
+        bge 3f
+
+        sta patternlength
+    zendif
+    jmp setup_screen_for_pattern_editor
+
+3:
+    jsr invalid_value_error
+    jmp setup_screen_for_pattern_editor
+1:
+    ; "Enter new pattern length (01-20):"
+    .byte 0x45, 0x0e, 0x14, 0x05, 0x12, 0x20, 0x0e, 0x05
+    .byte 0x17, 0x20, 16, 1, 20, 20, 5, 18, 14, 32
+    .byte 12, 5, 14, 7, 20, 8, 32
+    .byte 40, 48, 49, 45, 50, 48, 41
 2:
     .byte 0
 zendproc
@@ -540,7 +574,7 @@ zendproc
 
 zproc draw_row
     lda disrow
-    cmp #NUM_STEPS
+    cmp patternlength
     zif lt
         lda disrow
         jsr print_h8

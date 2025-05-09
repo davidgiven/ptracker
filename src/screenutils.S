@@ -742,6 +742,7 @@ zproc parse_hex
         ora p
     zendif
 
+    tax             ; set flags from A
     clc
     rts
 

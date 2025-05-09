@@ -40,6 +40,7 @@ zlproc do_keypress
     ldy #>MIDDLE_ROW_ADDRESS
     jsr move_cursor
 
+    jsr silence_engine
     jsr play_current_row
     jsr cursor_on
     zrepeat
@@ -108,6 +109,7 @@ ctrl_key_table:
     key 'N', key_ctrl_n     ; create new pattern
     key 'T', key_ctrl_t     ; change tempo
     key 'L', key_ctrl_l     ; change pattern length
+    key 'C', key_ctrl_c     ; clone this pattern
     .byte 0
 zendproc
 
@@ -350,6 +352,34 @@ zlproc key_ctrl_n
         stx patternno
         inc numpatterns
     zendif
+    rts
+zendproc
+
+; Clone this pattern into a new one.
+
+zlproc key_ctrl_c
+    lda patternno
+    pha
+    jsr key_ctrl_n
+
+    pla
+    clc
+    adc #>PATTERN_DATA
+    sta p+1
+
+    lda patternno
+    clc
+    adc #>PATTERN_DATA
+    sta w+1
+
+    ldy #0
+    sty p+0
+    sty w+0
+    zrepeat
+        lda (p), y
+        sta (w), y
+        dey
+    zuntil eq
     rts
 zendproc
 

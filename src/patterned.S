@@ -77,6 +77,12 @@ zlproc do_keypress
         cmp #'9'+1
         blt number_key
     zendif
+
+    cmp #'A'|0x80
+    zif ge
+        cmp #('Z'+1)|0x80
+        blt command_key
+    zendif
     rts
 
 key_table:
@@ -85,6 +91,7 @@ key_table:
     key 0x91, key_up
     key 0x1d, key_right
     key 0x9d, key_left
+    key 0x14, key_delete
     key 0x09, tone_editor ; tab
     key 0x13, tone_editor ; clr/home
     key 0x2d, key_decrement
@@ -114,6 +121,16 @@ zproc letter_key
     sec
     sbc #'A'-10
     jmp set_value
+zendproc
+
+zproc command_key
+    and #0x7f
+    jmp set_command
+zendproc
+
+zproc key_delete
+    lda #'B'
+    jmp set_command
 zendproc
 
 zproc key_esc
@@ -630,6 +647,12 @@ zproc draw_note
     zendif
 
 is_a_command:
+    cmp #FIRST_COMMAND + ('O' - 'A')
+    zif eq
+        lda #'='
+        jmp banner
+    zendif
+
     cmp #FIRST_COMMAND + ('B' - 'A')
     zif eq
         lda #'.'
@@ -754,6 +777,23 @@ zproc note_decode_table
         .endif
         i = i + 1
     .endr
+zendproc
+
+; Sets a command to A ('A'..'Z').
+
+zproc set_command
+    sec
+    sbc #'@'
+    clc
+    adc #FIRST_COMMAND-1
+    tax
+    lda cursorx
+    lsr a
+    and #0x0e
+    tay
+    txa
+    sta (rowptr), y
+    rts
 zendproc
 
 ; Sets the value under the cursor to A.

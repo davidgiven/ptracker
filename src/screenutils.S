@@ -366,9 +366,8 @@ zproc decode_subpixel
     rts
 zendproc
 
-; Returns the length of the message in Y.
-
-zproc text_prompt
+; YYXX = message; A = indent
+zproc draw_dialogue
     sta p+0     ; text indent
     stx w+0     ; pointer to message
     sty w+1
@@ -386,12 +385,12 @@ zproc text_prompt
 
     ldy #11
     jsr set_scrptr_y
-    ldy #40*5-1
+    ldy #40*5
     lda #0x20
     zrepeat
-        sta (scrptr), y
         dey
-    zuntil mi
+        sta (scrptr), y
+    zuntil eq
 
     ldy #16
     jsr set_scrptr_y
@@ -417,6 +416,17 @@ zproc text_prompt
         inc p+0
         inc p+1
     zendloop
+
+    rts
+zendproc
+
+; Returns the length of the entered text in Y.
+; YYXX = message; A = indent
+
+zproc text_prompt
+    jsr draw_dialogue
+
+    ; Draw the text entry line.
 
     ldy #15
     jsr set_scrptr_y
@@ -506,6 +516,39 @@ zproc text_prompt
     rts
 zendproc
 .common text_buffer, 16+1
+
+zproc display_message
+    jsr draw_dialogue
+
+    ldy #(2f-1f)-1
+    zrepeat
+        lda 1f, y
+        sta VRAM+ 15*40 + 20 - (2f-1f)/2, y
+        dey
+    zuntil mi
+
+    zrepeat
+        jsr getch
+    zuntil ne
+    rts
+
+1:
+    .byte 60, 16, 18, 5, 19, 19, 32, 11, 5, 25, 62
+2:
+zendproc
+
+zproc invalid_value_error
+    lda #20 - (2f-1f)/2
+    ldx #<1f
+    ldy #>1f
+    jmp display_message
+
+1:
+    ; "Invalid value"
+    .byte 73, 14, 22, 1, 12, 9, 4, 32, 22, 1, 12, 21, 5
+2:
+    .byte 0
+zendproc
 
 zproc scan_keyboard
     lda PIA1_PA
@@ -661,5 +704,72 @@ b1:
 rev:
 	eor #0x80		; flip bit 7 (reverse on when off and vice versa)
 end:
+    rts
+zendproc
+
+; Parses a two-character hex string in the text buffer and returns it in A. Sets
+; C on error.
+
+zproc parse_hex
+    lda FNLEN
+    beq 1f          ; reject empty strings
+    cmp #3
+    bge 1f          ; reject too-long strings
+
+    lda text_buffer+0
+    jsr verify_hex
+    bcs 1f
+
+    lda text_buffer+1
+    zif ne
+        jsr verify_hex
+        bcs 1f
+    zendif
+
+    lda text_buffer+0
+    jsr decode_char
+
+    ldx text_buffer+1
+    zif ne
+        asl a
+        asl a
+        asl a
+        asl a
+        sta p
+
+        lda text_buffer+1
+        jsr decode_char
+        ora p
+    zendif
+
+    clc
+    rts
+
+decode_char:
+    sec
+    sbc #'0'
+    cmp #10
+    zif ge
+        sbc #'A'-'0'-10
+    zendif
+
+1:
+    sec
+    rts
+zendproc
+
+zlproc verify_hex
+    cmp #'0'
+    zif ge
+        cmp #'9'+1
+        blt 1f ; bcc
+
+        cmp #'A'
+        zif ge
+            cmp #'F'+1
+            blt 1f ; bcc
+        zendif
+    zendif
+1:
     rts
 zendproc

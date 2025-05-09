@@ -10,11 +10,13 @@ cursorx:        .fill 1 ; position of cursor (0-15)
 looping_flag:   .fill 1
 
 LINE_PADDING = 4
+LINE_OFFSET = 3
 MIDDLE_ROW = 16
 SEQUENCE_ADDRESS = VRAM + 2*40
 PATTERN_NUMBER_ADDRESS = VRAM + 4*40 + 19
 TEMPO_ADDRESS = VRAM + 4*40 + 16
 PATTERNLENGTH_ADDRESS = VRAM + 5*40 + 16
+PATTERNCOUNT_ADDRESS = VRAM + 4*40 + 38
 MUTE_ADDRESS = VRAM + 7*40 + 7
 MIDDLE_ROW_ADDRESS = VRAM + (MIDDLE_ROW)*40
 
@@ -96,6 +98,7 @@ ctrl_key_table:
     key 'W', key_ctrl_w     ; insert before into sequence
     key 'D', key_ctrl_d     ; delete from sequence
     key 'N', key_ctrl_n     ; create new pattern
+    key 'T', key_ctrl_t     ; change tempo
     .byte 0
 zendproc
 
@@ -117,6 +120,7 @@ zproc key_esc
     sta e1v
     sta e2v
     sta e3v
+    rts
 zendproc
 
 zproc key_up
@@ -326,6 +330,36 @@ zlproc key_ctrl_n
     rts
 zendproc
 
+; Change the tempo.
+
+zlproc key_ctrl_t
+    lda #20 - (2f-1f)/2
+    ldx #<1f
+    ldy #>1f
+    jsr text_prompt
+    tya
+    zif ne
+        jsr parse_hex
+        bcs 3f
+
+        cmp #0x20
+        bge 3f
+
+        sta tempo
+    zendif
+    jmp setup_screen_for_pattern_editor
+
+3:
+    jsr invalid_value_error
+    jmp setup_screen_for_pattern_editor
+1:
+    ; "Enter new tempo:"
+    .byte 0x45, 0x0e, 0x14, 0x05, 0x12, 0x20, 0x0e, 0x05
+    .byte 0x17, 0x20, 0x14, 0x05, 0x0d, 0x10, 0x0f, 0x3a
+2:
+    .byte 0
+zendproc
+
 zproc setup_screen_for_pattern_editor
     lda #<data
     sta w+0
@@ -344,10 +378,10 @@ zendproc
 zproc editor_cursor_table
     i = 0
     .rept 4
-        .byte lo(MIDDLE_ROW_ADDRESS) + 6 + 8*i + 0
-        .byte lo(MIDDLE_ROW_ADDRESS) + 6 + 8*i + 2
-        .byte lo(MIDDLE_ROW_ADDRESS) + 6 + 8*i + 4
-        .byte lo(MIDDLE_ROW_ADDRESS) + 6 + 8*i + 5
+        .byte lo(MIDDLE_ROW_ADDRESS) + LINE_OFFSET + 5 + 8*i + 0
+        .byte lo(MIDDLE_ROW_ADDRESS) + LINE_OFFSET + 5 + 8*i + 2
+        .byte lo(MIDDLE_ROW_ADDRESS) + LINE_OFFSET + 5 + 8*i + 4
+        .byte lo(MIDDLE_ROW_ADDRESS) + LINE_OFFSET + 5 + 8*i + 5
         i = i + 1
     .endr
 zendproc
@@ -374,6 +408,13 @@ zproc draw_screen
     lda #hi(PATTERNLENGTH_ADDRESS)
     sta scrptr+1
     lda patternlength
+    jsr print_h8
+
+    lda #lo(PATTERNCOUNT_ADDRESS)
+    sta scrptr+0
+    lda #hi(PATTERNCOUNT_ADDRESS)
+    sta scrptr+1
+    lda numpatterns
     jsr print_h8
 
     ; The sequence.
@@ -430,9 +471,9 @@ zproc draw_screen
 
     ; Draw lines below the middle.
 
-    lda #<(MIDDLE_ROW_ADDRESS+2)
+    lda #<(MIDDLE_ROW_ADDRESS+LINE_OFFSET)
     sta scrptr+0
-    lda #>(MIDDLE_ROW_ADDRESS+2)
+    lda #>(MIDDLE_ROW_ADDRESS+LINE_OFFSET)
     sta scrptr+1
     lda rowptr+0
     sta disptr+0
@@ -457,9 +498,9 @@ zproc draw_screen
 
     ; Draw lines above the middle.
 
-    lda #<(MIDDLE_ROW_ADDRESS-40+2)
+    lda #<(MIDDLE_ROW_ADDRESS-40+LINE_OFFSET)
     sta scrptr+0
-    lda #>(MIDDLE_ROW_ADDRESS-40+2)
+    lda #>(MIDDLE_ROW_ADDRESS-40+LINE_OFFSET)
     sta scrptr+1
     sec
     lda rowptr+0
@@ -503,8 +544,8 @@ zproc draw_row
     zif lt
         lda disrow
         jsr print_h8
-        jsr print_space
-        jsr print_space
+        lda #3
+        jsr advance_scrptr
         jsr draw_note
         jsr print_space
         jsr draw_note
@@ -512,13 +553,12 @@ zproc draw_row
         jsr draw_note
         jsr print_space
         jsr draw_drum
-        jsr print_space
         rts
     zendif
 
     ; Not a displayable row --- blank it.
 
-    ldy #(39-LINE_PADDING)
+    ldy #(39-LINE_OFFSET-LINE_PADDING+1)
     lda #' '
     zrepeat
         sta (scrptr), y

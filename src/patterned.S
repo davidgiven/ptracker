@@ -882,29 +882,35 @@ is_a_note:
     rts
 
 tone:
-    iny
-    lda (rowptr), y
-    and #0x0f
-    sta w
+    cpx #0x10
+    zif lt
+        iny
+        lda (rowptr), y
+        and #0x0f
+        sta w
 
-    txa
-    asl a
-    asl a
-    asl a
-    asl a
-    ora w
-    sta (rowptr), y
+        txa
+        asl a
+        asl a
+        asl a
+        asl a
+        ora w
+        sta (rowptr), y
+    zendif
     rts
 
 volume:
-    iny
-    lda (rowptr), y
-    and #0xf0
-    sta w
+    cpx #0x10
+    zif lt
+        iny
+        lda (rowptr), y
+        and #0xf0
+        sta w
 
-    txa
-    ora w
-    sta (rowptr), y
+        txa
+        ora w
+        sta (rowptr), y
+    zendif
     rts
 
 drum:

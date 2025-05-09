@@ -11,6 +11,7 @@ looping_flag:   .fill 1
 
 LINE_PADDING = 4
 MIDDLE_ROW = 16
+SEQUENCE_ADDRESS = VRAM + 2*40
 PATTERN_NUMBER_ADDRESS = VRAM + 4*40 + 19
 TEMPO_ADDRESS = VRAM + 4*40 + 16
 PATTERNLENGTH_ADDRESS = VRAM + 5*40 + 16
@@ -60,7 +61,13 @@ zlproc do_keypress
     cmp #'A'
     zif ge
         cmp #'Z'+1
-        blt letter_key
+        zif lt
+            bit ctrl_flag
+            bpl letter_key
+
+            key_lookup ctrl_key_table
+            rts
+        zendif
     zendif
 
     cmp #'0'
@@ -81,6 +88,14 @@ key_table:
     key 0x2d, key_decrement
     key 0x2b, key_increment
     key 0x20, key_space
+    .byte 0
+
+ctrl_key_table:
+    key 'S', key_ctrl_s     ; save to sequence
+    key 'A', key_ctrl_a     ; insert after into sequence
+    key 'W', key_ctrl_w     ; insert before into sequence
+    key 'D', key_ctrl_d     ; delete from sequence
+    key 'N', key_ctrl_n     ; create new pattern
     .byte 0
 zendproc
 
@@ -105,6 +120,18 @@ zproc key_esc
 zendproc
 
 zproc key_up
+    bit ctrl_flag
+    zif mi
+        ldx patternno
+        dex
+        zif mi
+            ldx numpatterns
+            dex
+        zendif
+        stx patternno
+        rts
+    zendif
+
     lda rowno
     sec
     sbc #1
@@ -135,6 +162,24 @@ zproc key_down
 zendproc
 
 zproc key_left
+    bit ctrl_flag
+    zif mi
+        ldx seqindex
+        dex
+        zif mi
+            ldx #128            ; find the last allocated sequence slot
+            zrepeat
+                dex
+                lda sequence, x
+            zuntil pl
+        zendif
+
+        lda sequence, x
+        sta patternno
+        stx seqindex
+        rts
+    zendif
+
     lda cursorx
     zif ne
         dec cursorx
@@ -143,6 +188,20 @@ zproc key_left
 zendproc
 
 zproc key_right
+    bit ctrl_flag
+    zif mi
+        ldx seqindex
+        inx
+        lda sequence, x
+        zif mi
+            ldx #0
+            lda sequence
+        zendif
+        sta patternno
+        stx seqindex
+        rts
+    zendif
+
     lda cursorx
     cmp #15
     zif ne
@@ -163,6 +222,107 @@ zendproc
 
 zproc key_space
     jsr play_entire_song
+    rts
+zendproc
+
+; Save current pattern to sequence.
+
+zlproc key_ctrl_s
+    ldx seqindex
+    lda patternno
+    sta sequence, x
+    rts
+zendproc
+   
+; Insert before into sequence.
+
+zlproc key_ctrl_a
+    ldx #127
+    lda sequence, x
+    zif mi
+        zrepeat
+            lda sequence-1, x
+            sta sequence, x
+            dex
+            cpx seqindex
+        zuntil eq
+
+        ldx seqindex
+        lda patternno
+        sta sequence, x
+    zendif
+    rts
+zendproc
+
+; Insert after into sequence.
+
+zlproc key_ctrl_w
+    ldx #127
+    lda sequence, x
+    zif mi
+        zrepeat
+            lda sequence-1, x
+            sta sequence, x
+            dex
+            cpx seqindex
+        zuntil eq
+
+        ldx seqindex
+        inx
+        stx seqindex
+        lda patternno
+        sta sequence, x
+    zendif
+    rts
+zendproc
+
+; Delete from sequence
+
+zlproc key_ctrl_d
+    ldx seqindex
+    zif eq
+        lda sequence+1, x
+        zif mi
+            ; There's only one item in the sequence. Don't delete it.
+            rts
+        zendif
+    zendif
+
+    cpx #127
+    zif ne
+        zrepeat
+            lda sequence+1, x
+            sta sequence, x
+            inx
+            cpx #127
+        zuntil eq
+    zendif
+
+    lda #0xff
+    sta sequence+127
+
+    ldx seqindex
+    lda sequence, x
+    zif mi
+        ; The current item no longer exists; we must have deleted the last item.
+        dex
+        stx seqindex
+    zendif
+
+    lda sequence, x
+    sta patternno
+    rts
+zendproc
+
+; Allocate new pattern.
+
+zlproc key_ctrl_n
+    ldx numpatterns
+    cpx #MAX_PATTERNS
+    zif ne
+        stx patternno
+        inc numpatterns
+    zendif
     rts
 zendproc
 
@@ -193,6 +353,8 @@ zproc editor_cursor_table
 zendproc
 
 zproc draw_screen
+    ; Some basic indicators.
+
     lda #lo(PATTERN_NUMBER_ADDRESS)
     sta scrptr+0
     lda #hi(PATTERN_NUMBER_ADDRESS)
@@ -213,6 +375,47 @@ zproc draw_screen
     sta scrptr+1
     lda patternlength
     jsr print_h8
+
+    ; The sequence.
+
+    ldy #39
+    lda #' '
+    zrepeat
+        sta SEQUENCE_ADDRESS, y
+        dey
+    zuntil mi
+
+    lda #lo(SEQUENCE_ADDRESS+1)
+    sta scrptr+0
+    lda #hi(SEQUENCE_ADDRESS+1)
+    sta scrptr+1
+
+    ldx #0          ; count
+    lda seqindex
+    sec
+    sbc #6
+    tay             ; sequence index
+    zrepeat
+        tya         ; set flags from Y
+        zif mi
+        1:
+            lda #3
+            jsr advance_scrptr
+        zelse
+            lda sequence, y
+            bmi 1b
+            stx p
+            sty q
+            jsr print_h8
+            lda #' '
+            jsr print_char
+            ldx p
+            ldy q
+        zendif
+        iny
+        inx
+        cpx #13
+    zuntil eq
 
     ; TODO: looping flag
 

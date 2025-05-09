@@ -25,6 +25,7 @@ key_table:
     key 0x13, pattern_editor ; clr/home
     key 'L', key_l
     key 'S', key_s
+    key 32, key_space
     .byte 0
 zendproc
 
@@ -64,6 +65,17 @@ zlproc key_s
     ; "Filename to save:"
     .byte 70, 9, 12, 5, 14, 1, 13, 5, 32, 20, 15, 32, 19, 1, 22, 5, 58, 0
 2:
+zendproc
+
+zlproc key_space
+    lda #0
+    sta rowno
+    sta seqindex
+    lda sequence+0
+    sta patternno
+
+    jsr play_entire_song
+    jmp setup_screen_for_file_editor
 zendproc
 
 zlproc setup_screen_for_file_editor

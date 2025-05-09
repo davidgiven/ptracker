@@ -231,7 +231,7 @@ zendproc
 
 zproc key_space
     jsr play_entire_song
-    rts
+    jmp setup_screen_for_pattern_editor
 zendproc
 
 ; Save current pattern to sequence.
@@ -592,7 +592,7 @@ zproc draw_row
 
     ; Not a displayable row --- blank it.
 
-    ldy #(39-LINE_OFFSET-LINE_PADDING+1)
+    ldy #(39-LINE_OFFSET-LINE_PADDING+2)
     lda #' '
     zrepeat
         sta (scrptr), y

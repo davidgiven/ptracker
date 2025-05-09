@@ -88,18 +88,32 @@ zproc start_engine
     lda #0
     sta VIA_SR
 
+    sta key_flag             ; no key is pressed
+
+    lda #0xff
+    sta playing_flag
+
     lda tempo
     sta tempoticks
-
-    lda #'Y'
-    sta VRAM+39
 
     rts
 zendproc
 
 zproc stop_engine
-    lda #'N'
-    sta VRAM+39
+    rts
+zendproc
+
+zproc silence_engine
+    lda #0
+    sta t1m
+    sta t2m
+    sta t3m
+    sta t4ptr
+    sta t4len
+    sta e1v
+    sta e1d
+    sta e2v
+    sta e3v
     rts
 zendproc
 
@@ -107,11 +121,11 @@ zproc engine_tick
     ; Wait for the next SR interrupt.
 
     lda #0x04
-    bit VIA_IFR
-    zif ne
-        inc VRAM+34
-    zendif
-    stx VRAM+35
+    ;bit VIA_IFR
+    ;zif ne
+    ;    inc VRAM+34
+    ;zendif
+    ;stx VRAM+35
 
     zrepeat
         bit VIA_IFR
@@ -160,7 +174,6 @@ zproc engine_tick
     bit VIA_IFR
     zif ne
         sta VIA_IFR
-        inc VRAM+36
         
         dec tempoticks
 
@@ -354,8 +367,6 @@ zendproc
 zproc process_row
     lda tempoticks
     zif eq
-        inc VRAM+37
-
         lda tempo
         sta tempoticks
 
@@ -368,8 +379,7 @@ zproc process_row
             ldx seqindex
             inx
             lda sequence, x
-            cmp #0xff   ; marks the end of the sequence
-            zif eq
+            zif mi              ; ff marks the end of the sequence
                 ldx #0
                 lda sequence+0
             zendif
@@ -478,31 +488,54 @@ volume_command:
 zendproc
 
 zproc play_entire_song
+    jsr draw_empty_dialogue
+
+    ldx #2f-1f-1
+    zrepeat
+        lda 1f, x
+        sta VRAM + 13*40 + 20 - (2f-1f)/2, x
+        dex
+    zuntil mi
+
+    zrepeat
+        jsr is_key_pressed
+    zuntil eq
+    jsr scan_keyboard       ; so the keyboard sees a keyup
+
+    jsr silence_engine
+    jsr play_current_row
     jsr start_engine
     zrepeat
         jsr engine_tick
         jsr process_row
-        bit key_flag
-    zuntil pl               ; loop while pressed
-    jsr scan_keyboard       ; so the keyboard sees a keyup
-    zrepeat
-        jsr engine_tick
-        jsr process_row
+        bit playing_flag
+        zbreakif pl
         bit key_flag
     zuntil mi               ; loop while not pressed
-    jmp stop_engine
+    jsr stop_engine
+    
+    zrepeat
+        jsr getch
+    zuntil eq
+    rts
+
+1:
+    ; "Playing"
+    .byte 80, 12, 1, 25, 9, 14, 7
+2:
 zendproc
 
 zproc just_play_without_processing
     jsr start_engine
+    dec key_flag            ; a key _is_ pressed
     zrepeat
         jsr engine_tick
         bit key_flag
-    zuntil pl               ; loop while pressed
+    zuntil pl               ; loop until not pressed
     jsr scan_keyboard       ; so the keyboard sees a keyup
     zrepeat
         jsr engine_tick
         bit key_flag
-    zuntil mi               ; loop while not pressed
+    zuntil mi               ; loop until pressed
     jmp stop_engine
 zendproc

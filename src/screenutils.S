@@ -366,14 +366,7 @@ zproc decode_subpixel
     rts
 zendproc
 
-; YYXX = message; A = indent
-zproc draw_dialogue
-    sta p+0     ; text indent
-    stx w+0     ; pointer to message
-    sty w+1
-
-    ; Draw the 'dialogue box' with the message in it.
-
+zproc draw_empty_dialogue
     ldy #10
     jsr set_scrptr_y
     ldy #39
@@ -401,6 +394,19 @@ zproc draw_dialogue
         dey
     zuntil mi
     
+    rts
+zendproc
+
+; YYXX = message; A = indent
+zproc draw_dialogue
+    sta p+0     ; text indent
+    stx w+0     ; pointer to message
+    sty w+1
+
+    jsr draw_empty_dialogue
+
+    ; Draw the 'dialogue box' with the message in it.
+
     ldy #11
     jsr set_scrptr_y
     lda #0

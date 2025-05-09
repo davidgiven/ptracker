@@ -106,6 +106,7 @@ key_table:
     key 0x9d, key_left
     key 0x2d, key_decrement
     key 0x2b, key_increment
+    key 0xbb, key_increment ; SHIFT+; on the business keyboard
     .byte 0
 zendproc
 

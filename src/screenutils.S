@@ -61,7 +61,7 @@ bad_rom:
     brk
 1:
     .byte 13
-    .ascii "bad rom"
+    .ascii "BAD ROM"
     .byte 13
 2:
 zendproc

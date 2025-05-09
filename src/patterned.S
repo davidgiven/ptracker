@@ -96,6 +96,7 @@ key_table:
     key 0x13, tone_editor ; clr/home
     key 0x2d, key_decrement
     key 0x2b, key_increment
+    key 0xbb, key_increment ; SHIFT+; on the business keyboard
     key 0x20, key_space
     .byte 0
 

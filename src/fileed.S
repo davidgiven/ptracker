@@ -3,7 +3,7 @@
 #include "zif.inc"
 
 zproc file_editor
-    ldx #0
+    ldx #0xff
     txs
 
     zloop
@@ -23,9 +23,37 @@ zlproc do_keypress
 key_table:
     key 0x09, pattern_editor ; tab
     key 0x13, pattern_editor ; clr/home
+    key 'N', key_n
     key 'L', key_l
     key 'S', key_s
     key 32, key_space
+    .byte 0
+zendproc
+
+zlproc key_n
+    lda #20 - (2f-1f)/2
+    ldx #<1f
+    ldy #>1f
+    jsr text_prompt
+    tya
+    zif ne
+        lda text_buffer+0
+        cmp #'Y'
+        zif eq
+            jsr clear_all_data
+        zendif
+    zendif
+    rts
+
+1:
+    ; "Clear all data. Are you sure?"
+    .byte 67, 12, 5, 1, 18, 32
+    .byte 1, 12, 12, 32
+    .byte 4, 1, 20, 1, 46, 32
+    .byte 65, 18, 5, 32
+    .byte 25, 15, 21, 32
+    .byte 19, 21, 18, 5, 63
+2:
     .byte 0
 zendproc
 

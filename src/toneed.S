@@ -32,7 +32,7 @@ EDIT_DATA = 4
 EDIT__LAST = 4
 
 zproc tone_editor
-    ldx #0
+    ldx #0xff
     txs
     jsr setup_screen_for_tone_editor
 

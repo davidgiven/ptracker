@@ -21,7 +21,7 @@ MUTE_ADDRESS = VRAM + 7*40 + 7
 MIDDLE_ROW_ADDRESS = VRAM + (MIDDLE_ROW)*40
 
 zproc pattern_editor
-    ldx #0
+    ldx #0xff
     txs
     jsr setup_screen_for_pattern_editor
     

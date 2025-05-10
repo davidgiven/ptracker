@@ -718,7 +718,8 @@ zproc draw_drum
     cmp #FIRST_COMMAND
     bge is_a_command
     jsr draw_raw_drum
-    jmp next
+    jsr print_space
+    jmp done
 zendproc
 
 zproc draw_raw_note
@@ -769,28 +770,30 @@ zendproc
 
 zproc draw_raw_drum
     asl a
+    asl a
     clc
     adc (disptr), y
     tax
-    lda drum_to_name_table, x
-    jsr print_char
-    inx
-    lda drum_to_name_table, x
-    jsr print_char
-    inx
-    lda drum_to_name_table, x
-    jmp print_char
+    ldy #5
+    sty p
+    zrepeat
+        lda drum_to_name_table, x
+        jsr print_char
+        inx
+        dec p
+    zuntil eq
+    rts
 
 drum_to_name_table:
-    .ascii "Bwo"
-    .ascii "Bwe"
-    .ascii "Kck"
-    .ascii "Snr"
-    .ascii "HiH"
-    .ascii "N1 "
-    .ascii "N2 "
-    .ascii "N3 "
-    .ascii "N4 "
+    .byte 66, 23, 5, 5, 16   ; Bweep
+    .byte 66, 23, 15, 15, 16 ; Bwoop
+    .byte 75, 9, 3, 11, 32   ; Kick
+    .byte 83, 14, 1, 18, 5   ; Snare
+    .byte 72, 9, 8, 1, 20    ; Hihat
+    .byte 78, 15, 9, 19, 49  ; Nois1
+    .byte 78, 15, 9, 19, 50  ; Nois1
+    .byte 78, 15, 9, 19, 51  ; Nois1
+    .byte 78, 15, 9, 19, 52  ; Nois1
 zendproc
 
 ; For every note, this table contains a BCD-encoded representation of octave
@@ -946,8 +949,10 @@ volume:
 
 drum:
     txa
-    and #7
-    sta (rowptr), y
+    cmp #NUM_DRUMS
+    zif lt
+        sta (rowptr), y
+    zendif
     rts
 
 pitch:
@@ -1079,7 +1084,15 @@ volume2:
 
 drum2:
     txa
-    and #7
+    clc
+    adc (rowptr), y
+    zif mi
+        lda #NUM_DRUMS-1
+    zendif
+    cmp #NUM_DRUMS
+    zif eq
+        lda #0
+    zendif
     sta (rowptr), y
     rts
 zendproc

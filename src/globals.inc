@@ -64,6 +64,8 @@ MAX_PATTERNS = 70
 NUM_VOICES = 4
 TONE_SAMPLES = 64
 
+NUM_DRUMS = 9
+
 ; Notes
 
 #include "samplerate.py"

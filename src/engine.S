@@ -401,7 +401,7 @@ zendproc
 zproc play_current_row
     jsr reset_row_pointer
 
-    ldx #2                      ; voice count - 1
+    ldx #3                      ; voice count - 1
     zrepeat
         txa
         asl a

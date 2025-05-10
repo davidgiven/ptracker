@@ -51,14 +51,6 @@ zlproc do_keypress
     jsr cursor_off
     pla
 
-    pha
-    ldx #<VRAM
-    stx scrptr+0
-    ldx #>VRAM
-    stx scrptr+1
-    jsr print_h8
-    pla
-
     key_lookup key_table
     
     cmp #'A'

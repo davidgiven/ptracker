@@ -464,13 +464,6 @@ zproc text_prompt
 
         pha
         jsr cursor_off
-        lda #<VRAM
-        sta scrptr+0
-        lda #>VRAM
-        sta scrptr+1
-        pla
-        pha
-        jsr print_h8
         pla
 
         ldy PNTR

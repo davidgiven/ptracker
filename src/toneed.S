@@ -35,14 +35,7 @@ zproc tone_editor
     ldx #0xff
     txs
     jsr setup_screen_for_tone_editor
-
-    lda #0
-    sta e1v
-    sta e1d
-    sta e2v
-    sta e3v
-    sta t4ptr
-    sta t4len
+    jsr silence_engine
 
     zloop
         ; Set editsampledata to the correct value.

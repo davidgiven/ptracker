@@ -69,7 +69,6 @@ NUM_DRUMS = 9
 ; Notes
 
 #include "samplerate.py"
-NUM_PITCHES = 36*OCTAVES
 FIRST_COMMAND = 256-26
 
 ROW_LENGTH = NOTE_LENGTH * NUM_VOICES

@@ -79,7 +79,7 @@ zlproc do_keypress
     
     cmp #'0'
     zif ge
-        cmp #'0'+OCTAVES+1
+        cmp #'9'+1
         blt number_key
     zendif
 
@@ -125,7 +125,12 @@ zlproc letter_key
             lda name_to_note_table, x   ; get relative pitch of this note
             clc
             adc p                       ; adjust for octave
-            sta editnote
+            tay
+            lda note_table, y           ; validate note
+            zif ne
+                tya
+                sta editnote
+            zendif
         zendif
     zendif
     rts
@@ -135,7 +140,7 @@ zlproc number_key
     sec
     sbc #'0'
     zif ge
-        cmp #OCTAVES+1
+        cmp #'9'+1
         zif lt
             sta p
 
@@ -155,8 +160,10 @@ zlproc number_key
                 zrepeat
                     clc
                     adc #12*3
-                    cmp #NUM_PITCHES
-                    bge 1f
+                    tay
+                    lda note_table, y   ; validate note
+                    beq 1f
+                    tya
                     inx
                     cpx p
                 zuntil eq
@@ -170,7 +177,10 @@ zlproc number_key
             zrepeat
                 sec
                 sbc #12*3
-                bcc 1f
+                tay
+                lda note_table, y       ; validate note
+                beq 1f
+                tya
                 dex
                 cpx p
             zuntil eq

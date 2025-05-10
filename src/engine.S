@@ -259,15 +259,12 @@ tp_advance_voice 3
         adc (w), y          ; add delta from tone
         clc
         adc e\voice\()d     ; add pitch bend delta
-        zif mi
-            lda #0
-        zendif
-        cmp #NUM_PITCHES-1
-        zif ge
-            lda #NUM_PITCHES-1
-        zendif
         tax
         lda note_table, x   ; convert to period
+        zif eq
+            ; Out of bounds!
+            lda e\voice\()t ; fall back to the base note
+        zendif
         sta t\voice\()p
 
         rts
@@ -415,7 +412,7 @@ zproc play_current_row
 
         lda (rowptr), y         ; base note
         iny
-        cmp #NUM_PITCHES
+        cmp #FIRST_COMMAND
         blt is_note
         cmp #FIRST_COMMAND + ('O' - 'A')
         beq off_command

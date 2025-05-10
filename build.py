@@ -83,7 +83,21 @@ simplerule(
     label=["ELFTOPRG"],
 )
 
+simplerule(
+    name="diskimage",
+    ins=[".+ptracker"],
+    outs=["=ptracker.d64"],
+    commands=[
+        "chronic c1541 -format diskname,id d64 $[outs] -attach $[outs] -write $[ins[0]] ptracker"
+    ],
+    label="C1541",
+)
+
 export(
     name="all",
-    items={"p.elf": ".+ptracker_elf", "p": ".+ptracker"},
+    items={
+        "p.elf": ".+ptracker_elf",
+        "p": ".+ptracker",
+        "ptracker.d64": ".+diskimage",
+    },
 )

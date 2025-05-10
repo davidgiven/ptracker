@@ -832,7 +832,7 @@ zendproc
 
 zproc note_decode_table
     i = 0
-    .rept NUM_PITCHES
+    .rept FIRST_COMMAND
         .if (i % 3)
             .byte 0xff
         .else
@@ -902,7 +902,7 @@ is_a_note:
 
     ; Changing octave.
 
-    stx w
+    stx w                       ; store desired octave
 
     lda (rowptr), y
     tax
@@ -916,15 +916,19 @@ is_a_note:
         ; Raising octave.
 
         tax
+        sty w+1
         lda (rowptr), y
         zrepeat
             clc
             adc #12*3
-            cmp #NUM_PITCHES
-            bge 1f
+            tay
+            lda note_table, y   ; validate note
+            beq 1f
+            tya
             inx
             cpx w
         zuntil eq
+        ldy w+1
         sta (rowptr), y
     1:
         rts
@@ -933,14 +937,19 @@ is_a_note:
     ; Lowering octave.
 
     tax
+    sty w+1
     lda (rowptr), y
     zrepeat
         sec
         sbc #12*3
-        bcc 1f
+        tay
+        lda note_table, y       ; validate note
+        beq 1f
+        tya
         dex
         cpx w
     zuntil eq
+    ldy w+1
     sta (rowptr), y
 1:
     rts
@@ -1011,7 +1020,13 @@ pitch:
             lda name_to_note_table, x   ; get relative pitch of this note
             clc
             adc w                       ; adjust for octave
-            sta (rowptr), y
+            
+            tax
+            lda note_table, x           ; check note for validity
+            zif ne
+                txa
+                sta (rowptr), y
+            zendif
         zendif
         rts
     zendif
@@ -1059,8 +1074,10 @@ is_a_note2:
     txa
     clc
     adc (rowptr), y
-    cmp #NUM_PITCHES
-    zif lt
+    tax
+    lda note_table, x   ; check note for validity
+    zif ne
+        txa
         sta (rowptr), y
     zendif
     rts
@@ -1074,8 +1091,10 @@ octave2:
 
     clc
     adc (rowptr), y
-    cmp #NUM_PITCHES
-    zif lt
+    tax
+    lda note_table, x   ; check note for activity
+    zif ne
+        txa
         sta (rowptr), y
     zendif
     rts

@@ -18,7 +18,7 @@ hostcxxprogram(
     name="blockify", srcs=["utils/blockify.cc"], ldflags=["-lfreeimageplus"]
 )
 
-SCREENS = ["toneed", "patterned"]
+SCREENS = ["toneed", "patterned", "helped"]
 
 compressed_screens = []
 for b in SCREENS:
@@ -60,16 +60,17 @@ llvmrawprogram(
         "include/pet.inc",
         "include/zif.inc",
         "src/globals.inc",
+        "src/decompress.S",
         "src/engine.S",
         "src/filedata.S",
         "src/fileed.S",
+        "src/helped.S",
         "src/main.S",
         "src/patterned.S",
         "src/pcmdata.S",
+        "src/samplerate.py",
         "src/screenutils.S",
         "src/toneed.S",
-        "src/decompress.S",
-        "src/samplerate.py",
     ]
     + compressed_screens,
 )

@@ -430,22 +430,22 @@ zproc play_current_row
     done:
         dex
     zuntil mi
-    
-    ; If there's a drum, bypass the envelope generator and just play it.
-
-    ldy #6
-    lda (rowptr), y             ; drum
-    cmp #NUM_PITCHES
-    zif lt
-        tax
-        lda drum_instrument_table+0, x
-        sta t4ptr
-        lda drum_instrument_table+1, x
-        sta t4len
-    zendif
     rts
 
 is_note:
+    cpx #3
+    zif eq
+        ; This is the drum channel. Bypass the envelope generator and just
+        ; program the tone generator.
+
+        tay
+        lda drum_instrument_table+0, y
+        sta t4ptr
+        lda drum_instrument_table+1, y
+        sta t4len
+        jmp done
+    zendif
+
     sta e1b, x
 
     lda (rowptr), y     ; base volume

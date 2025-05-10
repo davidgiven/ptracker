@@ -376,15 +376,18 @@ zproc process_row
         cmp patternlength
         zif eq
         nextrow:
-            ldx seqindex
-            inx
-            lda sequence, x
-            zif mi              ; ff marks the end of the sequence
-                ldx #0
-                lda sequence+0
+            bit looping_flag
+            zif pl
+                ldx seqindex
+                inx
+                lda sequence, x
+                zif mi              ; ff marks the end of the sequence
+                    ldx #0
+                    lda sequence+0
+                zendif
+                stx seqindex
+                sta patternno
             zendif
-            stx seqindex
-            sta patternno
             lda #0
         zendif
         sta rowno
@@ -392,8 +395,11 @@ zproc process_row
         lda #0
         sta nextrow_flag
         jsr play_current_row
-        bit nextrow_flag
-        bne nextrow
+        bit looping_flag
+        zif pl
+            bit nextrow_flag
+            bne nextrow
+        zendif
     zendif
     rts
 zendproc

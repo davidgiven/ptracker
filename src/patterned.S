@@ -7,7 +7,6 @@ ZEROPAGE
 disptr:         .fill 2 ; pointer to row being displayed
 disrow:         .fill 1 ; row number being displayed
 cursorx:        .fill 1 ; position of cursor (0-15)
-looping_flag:   .fill 1
 
 LINE_PADDING = 4
 LINE_OFFSET = 3
@@ -18,6 +17,7 @@ TEMPO_ADDRESS = VRAM + 4*40 + 16
 PATTERNLENGTH_ADDRESS = VRAM + 5*40 + 16
 PATTERNCOUNT_ADDRESS = VRAM + 4*40 + 38
 MUTE_ADDRESS = VRAM + 7*40 + 7
+REPEAT_ADDRESS = VRAM + 7*40
 MIDDLE_ROW_ADDRESS = VRAM + (MIDDLE_ROW)*40
 
 zproc pattern_editor
@@ -103,6 +103,7 @@ ctrl_key_table:
     key 'L', key_ctrl_l     ; change pattern length
     key 'C', key_ctrl_c     ; clone this pattern
     key 'I', key_ctrl_i     ; tab to next voice
+    key 'R', key_ctrl_r     ; toggle looping flag
     .byte 0
 zendproc
 
@@ -445,6 +446,18 @@ zlproc key_ctrl_l
     .byte 0
 zendproc
 
+; Toggle the looping flag.
+
+zlproc key_ctrl_r
+    ldx #0
+    bit looping_flag
+    zif pl
+        dex
+    zendif
+    stx looping_flag
+    rts
+zendproc
+
 zproc setup_screen_for_pattern_editor
     lda #<data
     sta w+0
@@ -543,9 +556,18 @@ zproc draw_screen
         cpx #13
     zuntil eq
 
-    ; TODO: looping flag
+    ; Looping flag.
 
-    ; TODO: mute flags
+    ldx #(2f-1f)-1
+    zrepeat
+        lda #0x40
+        bit looping_flag
+        zif mi
+            lda 1f, x
+        zendif
+        sta REPEAT_ADDRESS, x
+        dex
+    zuntil mi
 
     ; Draw the arrows.
 
@@ -621,6 +643,11 @@ zproc draw_screen
         sbc #1
     zuntil eq
     rts
+
+1:
+    ; "REPEAT"
+    .byte 210, 197, 208, 197, 193, 212
+2:
 zendproc
 
 zproc draw_row

@@ -1,6 +1,7 @@
 from build.ab import export, simplerule
 from build.c import hostcxxprogram
 from build.llvm import llvmrawprogram
+from build.pkg import package
 
 simplerule(
     name="midinote_tab",
@@ -12,18 +13,44 @@ simplerule(
 
 hostcxxprogram(name="compressor", srcs=["utils/compressor.cpp"])
 hostcxxprogram(name="petseq", srcs=["utils/petseq.cc"])
+hostcxxprogram(name="seqpet", srcs=["utils/seqpet.cc"])
+hostcxxprogram(
+    name="blockify", srcs=["utils/blockify.cc"], ldflags=["-lfreeimageplus"]
+)
 
-SCREENS = ["toneed", "patterned", "fileed"]
+SCREENS = ["toneed", "patterned"]
 
 compressed_screens = []
 for b in SCREENS:
-    compressed_screens += [simplerule(
-        name=f"compressed_{b}",
-        ins=[".+petseq", ".+compressor", f"screens/{b}.seq"],
-        outs=[f"={b}_compressed.inc"],
-        commands=["$[ins[0]] < $[ins[2]] | $[ins[1]] > $[outs]"],
+    compressed_screens += [
+        simplerule(
+            name=f"compressed_{b}",
+            ins=[".+petseq", ".+compressor", f"screens/{b}.seq"],
+            outs=[f"={b}_compressed.inc"],
+            commands=["$[ins[0]] < $[ins[2]] | $[ins[1]] > $[outs]"],
+            label="COMPRESS",
+        )
+    ]
+
+compressed_screens += [
+    simplerule(
+        name=f"compressed_fileed",
+        ins=[
+            ".+petseq",
+            ".+compressor",
+            f"screens/fileed.seq",
+            f".+blockify",
+            f"extras/logo.png",
+        ],
+        outs=[f"=fileed_compressed.inc"],
+        commands=[
+            "$[ins[0]] < $[ins[2]] > tmp",
+            "$[ins[3]] $[ins[4]] | dd of=tmp bs=1 seek=80 conv=notrunc status=none",
+            "$[ins[1]] < tmp > $[outs]",
+        ],
         label="COMPRESS",
-    )]
+    )
+]
 
 llvmrawprogram(
     name="ptracker_elf",
@@ -43,7 +70,8 @@ llvmrawprogram(
         "src/toneed.S",
         "src/decompress.S",
         "src/samplerate.py",
-    ] + compressed_screens,
+    ]
+    + compressed_screens,
 )
 
 simplerule(

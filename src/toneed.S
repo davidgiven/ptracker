@@ -240,7 +240,7 @@ zlproc setup_screen_for_tone_editor
     jmp decompress
 
 data:
-#include "tonepage_compressed.inc"
+#include "toneed_compressed.inc"
 zendproc
 
 zlproc draw_label

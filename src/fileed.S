@@ -101,6 +101,7 @@ zlproc key_space
     sta seqindex
     lda sequence+0
     sta patternno
+    sta looping_flag
 
     jsr play_entire_song
     jmp setup_screen_for_file_editor
@@ -118,7 +119,7 @@ zlproc setup_screen_for_file_editor
     jmp decompress
 
 data:
-#include "filepage_compressed.inc"
+#include "fileed_compressed.inc"
 zendproc
 
 zproc clear_all_data
@@ -253,6 +254,12 @@ zproc load_file
     jsr 0xf193          ; send IEEE-488 char
     
     jsr clear_all_data
+    lda #0
+    sta rowno
+    sta seqindex
+    lda sequence+0
+    sta patternno
+
     lda #<MUSIC_DATA
     sta w+0
     lda #>MUSIC_DATA

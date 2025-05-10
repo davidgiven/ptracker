@@ -457,7 +457,7 @@ zproc setup_screen_for_pattern_editor
     jmp decompress
 
 data:
-#include "patternpage_compressed.inc"
+#include "patterned_compressed.inc"
 zendproc
 
 zproc editor_cursor_table

@@ -11,16 +11,17 @@ simplerule(
 )
 
 hostcxxprogram(name="compressor", srcs=["utils/compressor.cpp"])
+hostcxxprogram(name="petseq", srcs=["utils/petseq.cc"])
 
-SCREENS = ["tonepage", "patternpage", "filepage"]
+SCREENS = ["toneed", "patterned", "fileed"]
 
 compressed_screens = []
 for b in SCREENS:
     compressed_screens += [simplerule(
         name=f"compressed_{b}",
-        ins=[".+compressor", f"screens/{b}.prg"],
+        ins=[".+petseq", ".+compressor", f"screens/{b}.seq"],
         outs=[f"={b}_compressed.inc"],
-        commands=["tail -c +8194 $[ins[1]] | head -c 1000 | $[ins[0]] > $[outs]"],
+        commands=["$[ins[0]] < $[ins[2]] | $[ins[1]] > $[outs]"],
         label="COMPRESS",
     )]
 

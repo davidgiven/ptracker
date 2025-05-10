@@ -110,6 +110,7 @@ ctrl_key_table:
     key 'T', key_ctrl_t     ; change tempo
     key 'L', key_ctrl_l     ; change pattern length
     key 'C', key_ctrl_c     ; clone this pattern
+    key 'I', key_ctrl_i     ; tab to next voice
     .byte 0
 zendproc
 
@@ -210,9 +211,10 @@ zproc key_left
     zendif
 
     lda cursorx
-    zif ne
-        dec cursorx
-    zendif
+    sec
+    sbc #1
+    and #15
+    sta cursorx
     rts
 zendproc
 
@@ -232,10 +234,19 @@ zproc key_right
     zendif
 
     lda cursorx
-    cmp #15
-    zif ne
-        inc cursorx
-    zendif
+    clc
+    adc #1
+    and #15
+    sta cursorx
+    rts
+zendproc
+
+zproc key_ctrl_i
+    lda cursorx
+    clc
+    adc #4
+    and #15
+    sta cursorx
     rts
 zendproc
 

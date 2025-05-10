@@ -351,26 +351,29 @@ zlproc redraw
     lda #63              ; X position
     sta p
     zrepeat
-        lda p
-        jsr get_sample_xy
-        jsr plot_subpixel
+        ldy p
+        lda (editsampledata), y
+        and #0xf0
+        zif ne
+            cmp #0xf0
+        zendif
+        zif eq
+            zif eq
+                sec
+                lda #GRAPH_Y
+                sbc (editsampledata), y
+                
+                tay
+                lda p
+                clc
+                adc #GRAPH_X
+                tax
+
+                jsr plot_subpixel
+            zendif
+        zendif
         dec p
     zuntil mi
-    rts
-zendproc
-
-zlproc get_sample_xy
-    pha
-    tay
-    sec
-    lda #GRAPH_Y
-    sbc (editsampledata), y ; pitch
-    
-    tay
-    pla
-    clc
-    adc #GRAPH_X
-    tax
     rts
 zendproc
 

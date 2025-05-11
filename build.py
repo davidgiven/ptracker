@@ -14,7 +14,9 @@ hostcxxprogram(name="compressor", srcs=["utils/compressor.cpp"])
 hostcxxprogram(name="petseq", srcs=["utils/petseq.cc"])
 hostcxxprogram(name="seqpet", srcs=["utils/seqpet.cc"])
 hostcxxprogram(
-    name="blockify", srcs=["utils/blockify.cc"], ldflags=["-lfreeimageplus", "-lfreeimage"]
+    name="blockify",
+    srcs=["utils/blockify.cc"],
+    ldflags=["-lfreeimageplus", "-lfreeimage"],
 )
 
 SCREENS = ["toneed", "patterned", "helped"]
@@ -88,7 +90,7 @@ simplerule(
     outs=["=ptracker.d64"],
     commands=[
         "chronic cc1541 -q -n ptracker $[outs]",
-        "chronic cc1541 -q -f ptracker -w $[ins[0]] $[outs]"
+        "chronic cc1541 -q -f ptracker -w $[ins[0]] $[outs]",
     ],
     label="CC1541",
 )

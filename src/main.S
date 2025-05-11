@@ -33,6 +33,7 @@ zproc _start, .text.init
     jsr engine_mode
     jsr init_screen
     jsr clear_all_data
+    jsr init_pattern_editor
 
     jsr reset_row_pointer
     jmp file_editor

@@ -7,6 +7,9 @@ ZEROPAGE
 disptr:         .fill 2 ; pointer to row being displayed
 disrow:         .fill 1 ; row number being displayed
 cursorx:        .fill 1 ; position of cursor (0-15)
+lastoctave:     .fill 1 ; last octave selected
+lasttone:       .fill 1 ; last tone selected
+lastvolume:     .fill 1 ; last volume selected
 
 LINE_PADDING = 4
 LINE_OFFSET = 3
@@ -19,6 +22,13 @@ PATTERNCOUNT_ADDRESS = VRAM + 4*40 + 38
 MUTE_ADDRESS = VRAM + 7*40 + 7
 REPEAT_ADDRESS = VRAM + 7*40
 MIDDLE_ROW_ADDRESS = VRAM + (MIDDLE_ROW)*40
+
+zproc init_pattern_editor
+    lda #0x0f
+    sta lastvolume
+    inc lastoctave
+    rts
+zendproc
 
 zproc pattern_editor
     ldx #0xff
@@ -860,6 +870,37 @@ zproc set_command
     rts
 zendproc
 
+; Converts the current row (via index in Y) to a default note.
+
+zproc convert_to_note
+    txa
+    pha
+
+    ldx lastoctave
+    lda octave_to_note_table, x ; convert this to a note
+    tax
+    lda note_table, x           ; validate note
+    zif eq
+        ldx #C_1
+    zendif
+    txa
+    sta (rowptr), y
+
+    lda lasttone        ; set sensible defaults for tone and volume
+    asl a
+    asl a
+    asl a
+    asl a
+    ora lastvolume
+    iny
+    sta (rowptr), y
+    dey
+
+    pla
+    tax
+    rts
+zendproc
+
 ; Sets the value under the cursor to A.
 ; (0-9 means octave; 10+ means a letter, with A=10.)
 
@@ -878,11 +919,9 @@ zproc set_value
     cmp #2
     beq tone
     cmp #3
-    beq volume
+    beq 1f              ; label is just out of range
 
-    lda #C_1            ; convert this to a note
-    sta (rowptr), y
-
+    jsr convert_to_note
 is_a_note:
     lda cursorx
     cmp #12
@@ -893,6 +932,7 @@ is_a_note:
     cmp #2
     beq tone
     cmp #3
+1:
     beq volume
 
     ; Changing pitch or octave, depending on key pressed.
@@ -930,6 +970,8 @@ is_a_note:
         zuntil eq
         ldy w+1
         sta (rowptr), y
+        lda w
+        sta lastoctave
     1:
         rts
     zendif
@@ -951,12 +993,16 @@ is_a_note:
     zuntil eq
     ldy w+1
     sta (rowptr), y
+    lda w
+    sta lastoctave
 1:
     rts
 
 tone:
     cpx #0x10
     zif lt
+        stx lasttone
+
         iny
         lda (rowptr), y
         and #0x0f
@@ -972,9 +1018,19 @@ tone:
     zendif
     rts
 
+drum:
+    txa
+    cmp #NUM_DRUMS
+    zif lt
+        sta (rowptr), y
+    zendif
+    rts
+
 volume:
     cpx #0x10
     zif lt
+        stx lastvolume
+
         iny
         lda (rowptr), y
         and #0xf0
@@ -982,14 +1038,6 @@ volume:
 
         txa
         ora w
-        sta (rowptr), y
-    zendif
-    rts
-
-drum:
-    txa
-    cmp #NUM_DRUMS
-    zif lt
         sta (rowptr), y
     zendif
     rts
@@ -1052,8 +1100,7 @@ zproc adjust_value
     cmp #3
     beq volume2
 
-    lda #C_1            ; convert this to a note
-    sta (rowptr), y
+    jsr convert_to_note
 
 is_a_note2:
     lda cursorx

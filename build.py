@@ -86,11 +86,12 @@ simplerule(
 
 simplerule(
     name="diskimage",
-    ins=[".+ptracker"],
+    ins=[".+ptracker", "extras/onward-ride.ptr"],
     outs=["=ptracker.d64"],
     commands=[
         "chronic cc1541 -q -n ptracker $[outs]",
         "chronic cc1541 -q -f ptracker -w $[ins[0]] $[outs]",
+        "chronic cc1541 -q -f onward -w $[ins[1]] $[outs]",
     ],
     label="CC1541",
 )

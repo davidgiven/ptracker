@@ -14,7 +14,7 @@ hostcxxprogram(name="compressor", srcs=["utils/compressor.cpp"])
 hostcxxprogram(name="petseq", srcs=["utils/petseq.cc"])
 hostcxxprogram(name="seqpet", srcs=["utils/seqpet.cc"])
 hostcxxprogram(
-    name="blockify", srcs=["utils/blockify.cc"], ldflags=["-lfreeimageplus"]
+    name="blockify", srcs=["utils/blockify.cc"], ldflags=["-lfreeimageplus", "-lfreeimage"]
 )
 
 SCREENS = ["toneed", "patterned", "helped"]

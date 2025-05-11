@@ -3,11 +3,11 @@ from build.c import hostcxxprogram
 from build.llvm import llvmrawprogram
 
 simplerule(
-    name="midinote_tab",
-    ins=["src/midinote.py", "src/samplerate.py"],
-    outs=["=midinote.S"],
+    name="notetable_tab",
+    ins=["src/notetable.py", "src/samplerate.py"],
+    outs=["=notetable.S"],
     commands=["python3 $[ins[0]] > $[outs]"],
-    label="MIDINOTE",
+    label="NOTETABLE",
 )
 
 hostcxxprogram(name="compressor", srcs=["utils/compressor.cpp"])
@@ -55,7 +55,7 @@ llvmrawprogram(
     name="ptracker_elf",
     linkscript="src/pet.ld",
     srcs=[
-        ".+midinote_tab",
+        ".+notetable_tab",
         "include/pet.inc",
         "include/zif.inc",
         "src/globals.inc",

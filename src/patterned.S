@@ -152,10 +152,10 @@ zproc key_up
     bit ctrl_flag
     zif mi
         ldx patternno
-        dex
-        zif mi
-            ldx numpatterns
-            dex
+        inx
+        cpx numpatterns
+        zif eq
+            ldx #0
         zendif
         stx patternno
         rts
@@ -175,10 +175,10 @@ zproc key_down
     bit ctrl_flag
     zif mi
         ldx patternno
-        inx
-        cpx numpatterns
-        zif eq
-            ldx #0
+        dex
+        zif mi
+            ldx numpatterns
+            dex
         zendif
         stx patternno
         rts

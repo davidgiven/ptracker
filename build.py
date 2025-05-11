@@ -1,7 +1,6 @@
 from build.ab import export, simplerule
 from build.c import hostcxxprogram
 from build.llvm import llvmrawprogram
-from build.pkg import package
 
 simplerule(
     name="midinote_tab",

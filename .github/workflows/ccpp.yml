@@ -11,7 +11,7 @@ jobs:
         repository: 'davidgiven/cpm65'
 
     - name: apt
-      run: sudo apt update && sudo apt install cc1541 moreutils mame libsdl2-image-dev
+      run: sudo apt update && sudo apt install cc1541 moreutils libsdl2-image-dev
 
     - name: install llvm-mos
       run: |

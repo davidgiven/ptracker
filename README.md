@@ -34,9 +34,9 @@ It features:
   disk system
   - although if you're on an 80-column PET, the screen will be corrupted (but
     it'll all still work)
-  - (there's nothing stopping it running on anything down to a 2001, but
+  - there's nothing stopping it running on anything down to a 2001, but
     some work is required to find the keyboard scancode table in the ROM
-    for each version
+    for each version.
 
 Unlike traditional trackers, which were designed for machines with more memory
 (_cough_ Amiga _cough_), p-tracker has 32 steps per pattern, and each note can
@@ -66,11 +66,11 @@ installed.
 
 You'll need:
 
-  - python3
-  - make
-  - llvm-mos
-  - cc1541
-  - libfreeimage and libfreeimageplus
+  - `python3`
+  - `make`
+  - `llvm-mos`
+  - `cc1541`
+  - `libfreeimage` and `libfreeimageplus`
 
 Then, you should just be able to do `make` and it'll build. Look at
 `.github/workflows/ccpp.yml` for the autobuilder script. You'll get a `.prg`
@@ -98,35 +98,35 @@ music itself). Many of the keys use the Control key as a modifier; if you're on
 a PET which doesn't have a Control key, use `RVS/OFF` instead.
 
 - the cursor keys move around the pattern.
-- A-G and 0-9 enter data into the pattern. If you're on a note, A-G are
-  interpreted as a note name and 0-5 select octave. Otherwise, you're entering
+- `A`-`G` and `0`-`9` enter data into the pattern. If you're on a note, `A`-`G` are
+  interpreted as a note name and `0`-`3` select octave. Otherwise, you're entering
   a hex digit. (Trackers traditionally use hexadecimal. The fact that it's
   easier to draw has nothing to do with things.) To get accidentals, enter a
   note name and then press + or -.
-- + and - increment and decrement whatever the cursor is on.
-- Shift plus A-Z enter a command. See below for the list of supported commands.
+- `+` and `-` increment and decrement whatever the cursor is on.
+- Shift plus `A`-`Z` enter a command. See below for the list of supported commands.
 - Control plus the up and down cursor keys move between patterns (by pattern
   ID).
 - Control plus the left and right cursor keys move between sequence entries.
   You'll be automatically taken to the appropriate pattern.
 - `INS/DLT` removes the current note (writes a `B` command).
-- ^N creates a new pattern and takes you there. The sequence is left untouched.
-- ^S saves the current pattern to the visible slot in the sequence.
-- ^A inserts the current pattern _after_ the visible slot in the sequence,
+- `^N` creates a new pattern and takes you there. The sequence is left untouched.
+- `^S` saves the current pattern to the visible slot in the sequence.
+- `^A` inserts the current pattern _after_ the visible slot in the sequence,
   extending the sequence.
-- ^W inserts the current pattern _before_ the visible slot in the sequence,
+- `^W` inserts the current pattern _before_ the visible slot in the sequence,
   extending the sequence.
-- ^D removes the current pattern from the sequence, making the sequence
+- `^D` removes the current pattern from the sequence, making the sequence
   shorter. The pattern itself is untouched.
-- ^T changes the global tempo. The default is 10.
-- ^L change the pattern length, globally. The maximum is 1f. This doesn't
+- `^T` changes the global tempo. The default is 10.
+- `^L` change the pattern length, globally. The maximum is 1f. This doesn't
   change the amount of memory used per pattern (always 256 bytes) but allows
   songs which don't fit the power-of-two pattern size.
-- SPACE toggles playback.
+- `SPACE` toggles playback.
 
-Each note is displayed as the note, followed by two hex digits: the first is
-the tone number used for the note, and the second is the volume, with 0 being
-silent and f being loudest. For commands, these digits contain the command
+Each note is displayed as the note, followed by two hex digits: the first is the
+tone number used for the note, and the second is the volume, with `0` being
+silent and `f` being loudest. For commands, these digits contain the command
 parameter.
 
 The drum channel doesn't play ordinary notes, instead playing various different
@@ -135,16 +135,16 @@ for these, but you can set commands. (Pitch bend won't do what you expect.)
 
 There's a fairly small set of commands currently implemented:
 
-- B: does nothing. This is displayed as `....` in the pattern editor. Any
+- `B`: does nothing. This is displayed as `....` in the pattern editor. Any
   existing note on the channel continues to play. Pressing `INS/DLT` while
   set this.
-- O: off. Cancels any note being played on the channel. This is displayed as
+- `O`: off. Cancels any note being played on the channel. This is displayed as
   '====' in the pattern editor.
-- P: sets the channel's pitch delta to the parameter, in ⅓-semitone intervals.
-- V: sets the channel's volume to the parameter.
-- N: skips to the next pattern in the sequence --- useful if you want just one
+- `P`: sets the channel's pitch delta to the parameter, in ⅓-semitone intervals.
+- `V`: sets the channel's volume to the parameter.
+- `N`: skips to the next pattern in the sequence --- useful if you want just one
   short pattern.
-- X: stops playing.
+- `X`: stops playing.
 
 ### Tone
 

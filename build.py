@@ -96,8 +96,8 @@ simplerule(
 export(
     name="all",
     items={
-        "p.elf": ".+ptracker_elf",
-        "p": ".+ptracker",
+        "ptracker.elf": ".+ptracker_elf",
+        "ptracker.prg": ".+ptracker",
         "ptracker.d64": ".+diskimage",
     },
 )

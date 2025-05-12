@@ -16,8 +16,6 @@ three channels of music and one channel of drum sounds, simultaneously. Yes, you
 can do chords. No, you don't need any extra hardware, but an external speaker
 will probably help.
 
-(video link will go here)
-
 It features:
 
 - 85 32-step patterns
@@ -164,12 +162,13 @@ The graph can be edited one sample at a time by placing the cursor on it and
 pressing + or -. Note that the pitch can be increased or decreased, but the
 volume should only ever be decreased from the value actually being played.
 
-To play a sample note, press A-G to set the note and 0-5 to set the octave.
+To play a sample note, press `A`-`G` to set the note and `0`-`5` to set the
+octave.
 
 **Important note:** the engine used to actually generate the notes doesn't do a
-*very good job of changing the volume, but it _does_ cause the timbre to change
-*significantly allowing you to do things like sidechain effects. I may change
-*the name of the graph at some point.
+very good job of changing the volume, but it _does_ cause the timbre to change
+significantly allowing you to do things like sidechain effects. I may change
+the name of the graph at some point.
 
 ### Help
 

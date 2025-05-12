@@ -4,7 +4,7 @@
 
 ZEROPAGE
 
-.global scrptr, ctrl_flag, shift_flag
+.global scrptr, ctrl_flag, shift_flag, pending_key
 
 scrptr:         .fill 2
 cursor_flag:    .fill 1

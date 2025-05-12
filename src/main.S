@@ -37,12 +37,13 @@ zproc _start, .text.init
 
     jsr reset_row_pointer
     jmp file_editor
-
-bad_rom:
 zendproc
 
 zproc engine_mode
     sei
+    jsr scan_keyboard
+    lda #0
+    sta pending_key
     rts
 zendproc
 

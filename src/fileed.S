@@ -215,6 +215,14 @@ zproc clear_all_data
         lda w+1
         cmp #>VRAM
     zuntil eq
+    
+    ; Reset the playback position.
+
+    lda #0
+    sta rowno
+    sta seqindex
+    lda #0
+    sta patternno
     rts
 zendproc
     
@@ -252,11 +260,6 @@ zproc load_file
     jsr kopen
 
     jsr clear_all_data
-    lda #0
-    sta rowno
-    sta seqindex
-    lda sequence+0
-    sta patternno
 
     lda #<MUSIC_DATA
     sta w+0
@@ -287,6 +290,9 @@ zproc load_file
     jsr kclose
     jsr CLRCHN
     pla
+
+    lda sequence+0
+    sta patternno
 
     lda STATUS
     and #0x40           ; EOF

@@ -432,6 +432,10 @@ zproc kopen
     zif eq
         jmp 0xf563
     zendif
+    cmp #PET_2000
+    zif eq
+        jmp 0xf53d
+    zendif
     jmp 0xf524
 zendproc
 
@@ -440,6 +444,10 @@ zproc kclose
     cpx #PET_4000
     zif eq
         jmp 0xf2e2
+    zendif
+    cpx #PET_2000
+    zif eq
+        jmp 0xf2cb
     zendif
     jmp 0xf2ae
 zendproc

@@ -27,9 +27,6 @@ VIA_IER   = 0xe84e
 CRTC_ADDRESS = 0xe880
 CRTC_DATA = 0xe881
 
-IRQ_VECTOR = 0x0090
-BRK_VECTOR = 0x0092
-
 LOAD        = 0xffd5
 SAVE        = 0xffd8
 CHKIN       = 0xffc6

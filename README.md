@@ -28,13 +28,13 @@ It features:
   - 64 individually controllable volume and pitch steps each
   - 100Hz resolution
   - 'graphic' user interface
-- will run on any PET with BASIC 4 ROMs and 32kB (i.e. a 4032 or later) and a
-  disk system
+- will run on any PET with BASIC 2 or 4 ROMs and 32kB (i.e. a 3032 or later,
+  i.e. not a 2001) although a disk system is required
   - although if you're on an 80-column PET, the screen will be corrupted (but
     it'll all still work)
-  - there's nothing stopping it running on anything down to a 2001, but
-    some work is required to find the keyboard scancode table in the ROM
-    for each version.
+  - the only thing stopping it running on a 2001 is that all the zero page
+    kernal variables for doing file handling have moved and I haven't bothered
+    fixing it. The 2001 doesn't have sound anyway
 
 Unlike traditional trackers, which were designed for machines with more memory
 (_cough_ Amiga _cough_), p-tracker has 32 steps per pattern, and each note can

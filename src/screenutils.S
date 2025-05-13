@@ -36,19 +36,42 @@ zproc init_screen
 zendproc
 
 zlproc detect_keyboard_type
-    ; Find the CTRL (RVS) key in the keymap.
+    ; Detect the scancode table.
 
     lda 0xe0df
     cmp #0xbd           ; check for lda <abs>, x
-    bne bad_rom
-    sec
-    lda 0xe0e0
-    sbc #79
-    sta keymap_ptr+0
-    lda 0xe0e1
-    sbc #0
-    sta keymap_ptr+1
-    rts
+    zif eq              ; third generation EDIT rom
+        sec
+        lda 0xe0e0
+        sbc #79
+        sta keymap_ptr+0
+        lda 0xe0e1
+        sbc #0
+        sta keymap_ptr+1
+        rts
+    zendif
+
+    lda 0xe69c
+    cmp #0xbd           ; check for lda <abs>, x
+    zif eq
+        lda 0xe69d
+        sta keymap_ptr+0
+        lda 0xe69e
+        sta keymap_ptr+1
+        inc16 keymap_ptr
+        rts
+    zendif
+
+    lda 0xe73f
+    cmp #0xbd           ; check for lda <abs>, x
+    zif eq              ; first-generation EDIT rom
+        lda 0xe740
+        sta keymap_ptr+0
+        lda 0xe741
+        sta keymap_ptr+1
+        inc16 keymap_ptr
+        rts
+    zendif
 
 bad_rom:
     ldx #0

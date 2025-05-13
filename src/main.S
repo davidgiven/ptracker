@@ -55,11 +55,9 @@ zlproc keyboard_interrupt
     pha
     lda #<1f
     pha
-    php                     ; P
-    php                     ; A
-    php                     ; Y
-    php                     ; X
-    jmp (IRQ_VECTOR)
+    lda #0x25
+    pha                     ; a valid P with the BRK bit clear
+    jmp (0xfffe)
 1:
     rts
 zendproc

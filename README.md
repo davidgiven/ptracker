@@ -16,7 +16,7 @@ three channels of music and one channel of drum sounds, simultaneously. Yes, you
 can do chords. No, you don't need any extra hardware, but an external speaker
 will probably help.
 
-[![Youtube link](https://imf.youtube.com/vi/iqWJeM2MKt4/0.jpg)](https://www.youtube.com/watch?v=iqWJeM2MKt4 "p-tracker on Youtube")
+[![Youtube link](https://img.youtube.com/vi/iqWJeM2MKt4/0.jpg)](https://www.youtube.com/watch?v=iqWJeM2MKt4 "p-tracker on Youtube")
 
 Click to play on Youtube!
 

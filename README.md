@@ -46,7 +46,7 @@ be either a note _or_ a command (because that uses half as much space).
 
 You can [download
 binaries](https://github.com/davidgiven/ptracker/releases/tag/dev), or [get the
-source code from Github!](https://github.com/davidgiven/ptracker]
+source code from Github!](https://github.com/davidgiven/ptracker)
 
 ## Warning
 

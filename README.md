@@ -44,6 +44,9 @@ Unlike traditional trackers, which were designed for machines with more memory
 (_cough_ Amiga _cough_), p-tracker has 32 steps per pattern, and each note can
 be either a note _or_ a command (because that uses half as much space).
 
+You can [download
+binaries](https://github.com/davidgiven/ptracker/releases/tag/dev), or [get the
+source code from Github!](https://github.com/davidgiven/ptracker]
 
 ## Warning
 

@@ -436,7 +436,7 @@ zlproc key_ctrl_l
         jsr parse_hex
         bcs 3f
 
-        cmp #0x20
+        cmp #0x20+1
         bge 3f
 
         sta patternlength

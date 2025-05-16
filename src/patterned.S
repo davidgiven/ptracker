@@ -10,6 +10,7 @@ cursorx:        .fill 1 ; position of cursor (0-15)
 lastoctave:     .fill 1 ; last octave selected
 lasttone:       .fill 1 ; last tone selected
 lastvolume:     .fill 1 ; last volume selected
+copyptr:        .fill 2 ; pointer to note that the copy cursor is on
 
 LINE_PADDING = 4
 LINE_OFFSET = 3
@@ -502,7 +503,7 @@ zproc draw_screen
     lda #hi(PATTERN_NUMBER_ADDRESS)
     sta scrptr+1
     lda patternno
-    jsr print_h8
+    jsr print_h8_inverted
 
     lda #lo(TEMPO_ADDRESS)
     sta scrptr+0

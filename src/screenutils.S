@@ -117,6 +117,28 @@ zproc print_space
     jmp print_char
 zendproc
 
+zproc print_h8_inverted
+    pha
+    lsr a
+    lsr a
+    lsr a
+    lsr a
+    jsr print_h4_inverted
+    pla
+    and #0x0f
+.global print_h4_inverted
+print_h4_inverted:
+    tay
+    lda hex_table, y
+.global print_char_inverted
+print_char_inverted:
+    ldy #0
+    ora #0x80
+    sta (scrptr), y
+    inc16 scrptr
+    rts
+zendproc
+
 zproc hex_table
     .ascii "0123456789"
     .byte 1, 2, 3, 4, 5, 6 ; PET screen codes for a-f

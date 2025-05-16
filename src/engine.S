@@ -507,7 +507,7 @@ zproc play_entire_song
         zrepeat
             jsr is_key_pressed
         zuntil eq
-        jsr is_key_pressed  ; debounce
+        jsr is_key_pressed
     zuntil eq
     jsr scan_keyboard       ; so the keyboard sees a keyup
 

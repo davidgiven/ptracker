@@ -22,7 +22,7 @@ Click to play on Youtube!
 
 It features:
 
-- 85 32-step patterns
+- space for 85 32-step patterns
 - 128 patterns per sequence
 - three tone channels plus noise channel
 - ⅓-semitone pitch resolution

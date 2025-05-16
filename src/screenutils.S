@@ -228,7 +228,8 @@ zproc is_key_pressed
     and #0xf0
     sta PIA1_PA
 
-    ; Everything about the PET keyboard is annoying. At least the first five rows are the same on both the business and graphics keyboards.
+    ; Everything about the PET keyboard is annoying. At least the first five
+    ; rows are the same on both the business and graphics keyboards.
 
     lda PIA1_PB
     inc PIA1_PA
@@ -578,7 +579,10 @@ zproc scan_keyboard
     sta PIA1_PA
 
     zloop
-        lda PIA1_PA         ; get row being probed
+        zrepeat
+            lda PIA1_PA         ; get row being probed
+            cmp PIA1_PA         ; debounce
+        zuntil eq
         and #0x0f
         cmp #10
         zbreakif eq

@@ -219,7 +219,10 @@ zproc tp_check_for_keypress
     sta key_flag
     jsr is_key_pressed
     zif ne
-        dec key_flag
+        jsr is_key_pressed      ; debounce
+        zif ne
+            dec key_flag
+        zendif
     zendif
     rts
 zendproc
@@ -501,7 +504,10 @@ zproc play_entire_song
     zuntil mi
 
     zrepeat
-        jsr is_key_pressed
+        zrepeat
+            jsr is_key_pressed
+        zuntil eq
+        jsr is_key_pressed  ; debounce
     zuntil eq
     jsr scan_keyboard       ; so the keyboard sees a keyup
 

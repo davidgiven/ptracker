@@ -20,7 +20,7 @@ TEMPO_ADDRESS = VRAM + 4*40 + 16
 PATTERNLENGTH_ADDRESS = VRAM + 5*40 + 16
 PATTERNCOUNT_ADDRESS = VRAM + 4*40 + 38
 MUTE_ADDRESS = VRAM + 7*40 + 7
-REPEAT_ADDRESS = VRAM + 7*40
+REPEAT_ADDRESS = VRAM + 5*40 + 28
 MIDDLE_ROW_ADDRESS = VRAM + (MIDDLE_ROW)*40
 
 zproc init_pattern_editor
@@ -570,7 +570,7 @@ zproc draw_screen
 
     ldx #(2f-1f)-1
     zrepeat
-        lda #0x40
+        lda #0x20
         bit looping_flag
         zif mi
             lda 1f, x

@@ -250,29 +250,28 @@ zproc load_file
 
     jsr print_filename
 
-    lda #1            ; logical file handle
-    sta LA
     lda #0x60
     sta SA            ; secondary address
     lda #8
     sta FA            ; device number
-
-    jsr kopen
-
+    
+    jsr 0xf449          ; open?
+    jsr 0xf4a5          ; LISTEN
+    jsr 0xf0d2          ; TALK
+    lda SA
+    jsr 0xf193          ; send IEEE-488 char
+    
     jsr clear_all_data
 
     lda #<MUSIC_DATA
     sta w+0
     lda #>MUSIC_DATA
     sta w+1
-    
-    ldx LA
-    jsr CHKIN
     zrepeat
         lda #0
         sta STATUS
 
-        jsr CHRIN
+        jsr 0xf1c0      ; read byte
         ldy #0
         sta (w), y
 
@@ -286,14 +285,12 @@ zproc load_file
         lda STATUS
     zuntil ne
     pha
-    lda LA
-    jsr kclose
-    jsr CLRCHN
-    pla
+    jsr 0xf3ce          ; untalk and close
 
     lda sequence+0
     sta patternno
 
+    pla
     lda STATUS
     and #0x40           ; EOF
     zif eq
@@ -319,14 +316,15 @@ zproc save_file
 
     jsr print_filename
 
-    lda #1            ; logical file handle
-    sta LA
     lda #0x61
     sta SA            ; secondary address
     lda #8
     sta FA            ; device number
     
-    jsr kopen
+    jsr 0xf4a5
+    jsr 0xf0d5
+    lda SA
+    jsr 0xf143
     
     lda #<MUSIC_DATA
     sta w+0
@@ -336,10 +334,6 @@ zproc save_file
     lda numpatterns
     adc #>PATTERN_DATA
     sta p
-    
-    ldx LA
-    jsr CHKOUT
-
     zrepeat
         lda w+1
         cmp p
@@ -350,24 +344,19 @@ zproc save_file
 
         ldy #0
         lda (w), y
-        jsr CHROUT
+        jsr 0xf143
 
         inc w+0
         zif eq
             inc w+1
-            jsr CLRCHN
             lda #'.'
             jsr CHROUT
-            ldx LA
-            jsr CHKOUT
         zendif
 
         lda STATUS
     zuntil ne
     pha
-    lda LA
-    jsr kclose
-    jsr CLRCHN
+    jsr 0xf72c          ; unlisten and close
     pla
 
     jmp show_disk_error
@@ -382,33 +371,26 @@ zproc show_disk_error
     jsr CHROUT
     jsr CHROUT
 
-    lda #0
-    sta FNLEN
-    lda #1
-    sta LA            ; logical file handle
     lda #0x6f
     sta SA            ; secondary address (error channel)
     lda #8
     sta FA            ; device number
     
-    jsr kopen
-
-    ldx LA
-    jsr CHKIN
+    jsr 0xf0d2          ; TALK
+    lda SA
+    jsr 0xf193          ; send IEEE-488 char
     
     zrepeat
         lda #0
         sta STATUS
 
-        jsr CHRIN
+        jsr 0xf1c0      ; read byte
         jsr CHROUT
 
         lda STATUS
     zuntil ne
 
-    lda LA
-    jsr kclose
-    jsr CLRCHN
+    jsr 0xf1ae          ; UNTALK
 
 wait_for_keypress:
     ldy #0
@@ -428,32 +410,4 @@ wait_msg:
     .byte 13, 13
     .ascii "PRESS ANY KEY"
 wait_msg_end:
-zendproc
-
-; Kernal API wrappers.
-
-zproc kopen
-    lda PET_DETECT
-    cmp #PET_4000
-    zif eq
-        jmp 0xf563
-    zendif
-    cmp #PET_2000
-    zif eq
-        jmp 0xf53d
-    zendif
-    jmp 0xf524
-zendproc
-
-zproc kclose
-    ldx PET_DETECT
-    cpx #PET_4000
-    zif eq
-        jmp 0xf2e2
-    zendif
-    cpx #PET_2000
-    zif eq
-        jmp 0xf2cb
-    zendif
-    jmp 0xf2ae
 zendproc

@@ -203,8 +203,9 @@ This program was written by myself, David Given <dg@cowlark.com>; I have a
 website at http://cowlark.com. There may or may not be anything interesting
 there.
 
-The sample track, _Onward Ride_, is a cover of Proton's SID version
+One of the sample track, _Onward Ride_, is a cover of Proton's SID version
 (https://csdb.dk/sid/?id=57172) of Jugi's MOD classic
 (https://modarchive.org/index.php?request=view_by_moduleid&query=50820) which
-was the soundtrack to Dope (https://www.pouet.net/prod.php?which=37), one of the
-most significant demoscene works ever.
+was the soundtrack to Dope (https://www.pouet.net/prod.php?which=37), one of
+the most significant demoscene works ever. The other is a cover of Darude's
+Sandstorm, which is released twenty-five years ago. I feel old.
